@@ -1,0 +1,55 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version type (major, minor, patch)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    name: Bump Version
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install semver
+        run: npm install -g semver
+
+      - name: Bump version
+        id: bump
+        run: |
+          current=$(jq -r '.version' plugin.json)
+          new=$(semver $current -i ${{ github.event.inputs.version }})
+          echo "current=$current" >> $GITHUB_OUTPUT
+          echo "new=$new" >> $GITHUB_OUTPUT
+          jq ".version = \"$new\"" plugin.json > tmp.json
+          mv tmp.json plugin.json
+          echo "Bumped version from $current to $new"
+
+      - name: Commit and tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add plugin.json
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.new }}"
+          git tag -a "v${{ steps.bump.outputs.new }}" -m "Release v${{ steps.bump.outputs.new }}"
+          git push origin main --tags

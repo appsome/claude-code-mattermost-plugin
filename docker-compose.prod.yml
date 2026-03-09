@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  bridge-server:
+    build:
+      context: ./bridge-server
+      dockerfile: Dockerfile
+    container_name: claude-code-bridge
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_PATH=/data/sessions.db
+      - CLAUDE_CODE_PATH=/usr/local/bin/claude
+      - HOST=0.0.0.0
+      - PORT=3002
+      - MAX_SESSIONS=100
+      - SESSION_TIMEOUT_MS=3600000
+      - LOG_LEVEL=info
+    volumes:
+      - bridge-data:/data
+      # Mount Claude Code CLI if installed on host
+      # - /usr/local/bin/claude:/usr/local/bin/claude:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  bridge-data:
+    driver: local

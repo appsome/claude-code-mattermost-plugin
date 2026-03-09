@@ -39,12 +39,17 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+// Track server start time for uptime calculation
+const startTime = Date.now();
+
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
   res.json({
-    status: 'healthy',
-    timestamp: Date.now(),
+    status: 'ok',
+    version: process.env.npm_package_version || '1.0.0',
+    uptime: Math.floor((Date.now() - startTime) / 1000),
     sessions: spawner.getAllProcesses().length,
+    timestamp: new Date().toISOString(),
   });
 });
 
