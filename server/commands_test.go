@@ -50,10 +50,10 @@ func TestExecuteCommand_StartWithoutPath(t *testing.T) {
 func TestExecuteCommand_StopWithoutSession(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// No active session
 	api.On("KVGet", mock.AnythingOfType("string")).Return(nil, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	args := &model.CommandArgs{
@@ -73,10 +73,10 @@ func TestExecuteCommand_StopWithoutSession(t *testing.T) {
 func TestExecuteCommand_SendWithoutSession(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// No active session
 	api.On("KVGet", mock.AnythingOfType("string")).Return(nil, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	args := &model.CommandArgs{
@@ -96,10 +96,10 @@ func TestExecuteCommand_SendWithoutSession(t *testing.T) {
 func TestExecuteCommand_Status(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// No active session
 	api.On("KVGet", mock.AnythingOfType("string")).Return(nil, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	args := &model.CommandArgs{
@@ -139,10 +139,10 @@ func TestExecuteCommand_FilesWithoutSession(t *testing.T) {
 func TestExecuteCommand_ThreadWithoutSession(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// No active session
 	api.On("KVGet", mock.AnythingOfType("string")).Return(nil, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	args := &model.CommandArgs{
@@ -202,11 +202,11 @@ func TestFormatDuration(t *testing.T) {
 	timestamp := int64(1678901234)
 	result := formatDuration(timestamp)
 	assert.Equal(t, "<t:1678901234:R>", result)
-	
+
 	// Test with zero timestamp
 	result = formatDuration(0)
 	assert.Equal(t, "<t:0:R>", result)
-	
+
 	// Test with negative timestamp
 	result = formatDuration(-1000)
 	assert.Equal(t, "<t:-1000:R>", result)
@@ -217,11 +217,11 @@ func TestFormatPID(t *testing.T) {
 	pid := 12345
 	result := formatPID(&pid)
 	assert.Equal(t, "PID 12345", result)
-	
+
 	// Test with nil PID
 	result = formatPID(nil)
 	assert.Equal(t, "Not running", result)
-	
+
 	// Test with zero PID
 	zeroPID := 0
 	result = formatPID(&zeroPID)
@@ -231,7 +231,7 @@ func TestFormatPID(t *testing.T) {
 func TestExecuteClaudeStart_WithExistingSession(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// Mock existing session
 	existingSession := &ChannelSession{
 		SessionID:   "session123",
@@ -240,7 +240,7 @@ func TestExecuteClaudeStart_WithExistingSession(t *testing.T) {
 	}
 	data, _ := json.Marshal(existingSession)
 	api.On("KVGet", "session_channel1").Return(data, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	args := &model.CommandArgs{
@@ -259,7 +259,7 @@ func TestExecuteClaudeStart_WithExistingSession(t *testing.T) {
 func TestExecuteClaudeStatus_WithActiveSession(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// Mock existing session
 	existingSession := &ChannelSession{
 		SessionID:     "session123",
@@ -270,11 +270,11 @@ func TestExecuteClaudeStatus_WithActiveSession(t *testing.T) {
 	}
 	data, _ := json.Marshal(existingSession)
 	api.On("KVGet", "session_channel1").Return(data, nil)
-	
+
 	// Mock bridge client GetSession call
 	// Note: This will fail without a working bridge, so we expect an error path
 	api.On("LogError", "Failed to get session from bridge", mock.Anything, mock.Anything).Return()
-	
+
 	defer api.AssertExpectations(t)
 
 	args := &model.CommandArgs{
@@ -293,7 +293,7 @@ func TestExecuteClaudeStatus_WithActiveSession(t *testing.T) {
 func TestExecuteClaudeThread_InvalidAction(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// Mock existing session
 	existingSession := &ChannelSession{
 		SessionID:   "session123",
@@ -302,7 +302,7 @@ func TestExecuteClaudeThread_InvalidAction(t *testing.T) {
 	}
 	data, _ := json.Marshal(existingSession)
 	api.On("KVGet", "session_channel1").Return(data, nil)
-	
+
 	// Mock GetChannel (required by GetThreadContext)
 	channel := &model.Channel{
 		Id:   "channel1",
@@ -310,7 +310,7 @@ func TestExecuteClaudeThread_InvalidAction(t *testing.T) {
 		Type: model.ChannelTypeOpen,
 	}
 	api.On("GetChannel", "channel1").Return(channel, nil)
-	
+
 	// Mock GetPostThread (required by GetThreadContext) with at least one post
 	rootPost := &model.Post{
 		Id:        "root1",
@@ -326,18 +326,18 @@ func TestExecuteClaudeThread_InvalidAction(t *testing.T) {
 		},
 	}
 	api.On("GetPostThread", "root1").Return(postList, nil)
-	
+
 	// Mock GetUser for username lookup
 	user := &model.User{
 		Id:       "user1",
 		Username: "testuser",
 	}
 	api.On("GetUser", "user1").Return(user, nil)
-	
+
 	// Mock log calls for bridge connection failure and thread send failure
 	api.On("LogError", mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
 	api.On("LogWarn", mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
-	
+
 	defer api.AssertExpectations(t)
 
 	args := &model.CommandArgs{
@@ -357,9 +357,9 @@ func TestExecuteClaudeThread_InvalidAction(t *testing.T) {
 func TestExecuteClaude_EmptyMessage(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// No need to mock KVGet - empty message is checked before session retrieval
-	
+
 	defer api.AssertExpectations(t)
 
 	args := &model.CommandArgs{
@@ -408,7 +408,7 @@ func TestParseProjectPath(t *testing.T) {
 			expected: "",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			parts := strings.Fields(tt.command)
@@ -427,11 +427,11 @@ func TestParseProjectPath(t *testing.T) {
 // setupTestPlugin creates a plugin instance with mocked API for testing
 func setupTestPlugin(t *testing.T) *Plugin {
 	api := &plugintest.API{}
-	
+
 	p := &Plugin{}
 	p.SetAPI(api)
 	p.botUserID = "bot123"
-	
+
 	// Initialize configuration
 	config := &configuration{
 		BridgeServerURL:      "http://localhost:3002",
@@ -439,9 +439,9 @@ func setupTestPlugin(t *testing.T) *Plugin {
 		EnableFileOperations: true,
 	}
 	p.setConfiguration(config)
-	
+
 	// Initialize bridge client
 	p.bridgeClient = NewBridgeClient("http://localhost:3002", api)
-	
+
 	return p
 }

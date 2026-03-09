@@ -12,16 +12,16 @@ import (
 func TestPostChangeProposal(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// Mock site URL config
 	config := &model.Config{}
 	siteURL := "http://localhost:8065"
 	config.ServiceSettings.SiteURL = &siteURL
 	api.On("GetConfig").Return(config)
-	
+
 	// Mock post creation
 	api.On("CreatePost", mock.AnythingOfType("*model.Post")).Return(&model.Post{Id: "post123"}, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	_ = p.postChangeProposal("channel1", "Would you like to apply this change?", "change123")
@@ -31,17 +31,17 @@ func TestPostChangeProposal(t *testing.T) {
 func TestPostWithQuickActions(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// Mock site URL config
 	config := &model.Config{}
 	siteURL := "http://localhost:8065"
 	config.ServiceSettings.SiteURL = &siteURL
 	api.On("GetConfig").Return(config)
-	
+
 	// Mock post creation
 	createdPost := &model.Post{Id: "post123"}
 	api.On("CreatePost", mock.AnythingOfType("*model.Post")).Return(createdPost, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	postID, err := p.postWithQuickActions("channel1", "Here's the response", "session123")
@@ -54,16 +54,16 @@ func TestPostWithQuickActions(t *testing.T) {
 func TestPostCodeChange(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// Mock site URL config
 	config := &model.Config{}
 	siteURL := "http://localhost:8065"
 	config.ServiceSettings.SiteURL = &siteURL
 	api.On("GetConfig").Return(config)
-	
+
 	// Mock post creation
 	api.On("CreatePost", mock.AnythingOfType("*model.Post")).Return(&model.Post{Id: "post123"}, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	diff := "+function hello() {\n-  console.log('old');\n+  console.log('new');\n+}"
@@ -74,16 +74,16 @@ func TestPostCodeChange(t *testing.T) {
 func TestPostWithMenu(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// Mock site URL config
 	config := &model.Config{}
 	siteURL := "http://localhost:8065"
 	config.ServiceSettings.SiteURL = &siteURL
 	api.On("GetConfig").Return(config)
-	
+
 	// Mock post creation
 	api.On("CreatePost", mock.AnythingOfType("*model.Post")).Return(&model.Post{Id: "post123"}, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	options := []ActionOption{
@@ -97,16 +97,16 @@ func TestPostWithMenu(t *testing.T) {
 func TestUpdatePostWithProgress(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	existingPost := &model.Post{
 		Id:      "post123",
 		Message: "Old message",
 	}
-	
+
 	// Mock getting and updating the post
 	api.On("GetPost", "post123").Return(existingPost, nil)
 	api.On("UpdatePost", mock.AnythingOfType("*model.Post")).Return(&model.Post{}, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	_ = p.updatePostWithProgress("post123", "Processing...")
@@ -116,16 +116,16 @@ func TestUpdatePostWithProgress(t *testing.T) {
 func TestUpdatePostMessage(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	existingPost := &model.Post{
 		Id:      "post123",
 		Message: "Old message",
 	}
-	
+
 	// Mock getting and updating the post
 	api.On("GetPost", "post123").Return(existingPost, nil)
 	api.On("UpdatePost", mock.AnythingOfType("*model.Post")).Return(&model.Post{}, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	_ = p.updatePostMessage("post123", "New message")
@@ -135,12 +135,12 @@ func TestUpdatePostMessage(t *testing.T) {
 func TestGetPluginURL(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	config := &model.Config{}
 	siteURL := "http://localhost:8065"
 	config.ServiceSettings.SiteURL = &siteURL
 	api.On("GetConfig").Return(config)
-	
+
 	defer api.AssertExpectations(t)
 
 	url := p.getPluginURL()

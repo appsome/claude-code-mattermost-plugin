@@ -12,10 +12,10 @@ import (
 func TestGetActiveSession_NoSession(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// Return nil for KVGet (no session)
 	api.On("KVGet", "session_channel1").Return(nil, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	session, err := p.GetActiveSession("channel1")
@@ -26,7 +26,7 @@ func TestGetActiveSession_NoSession(t *testing.T) {
 func TestGetActiveSession_ExistingSession(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// Create a session object
 	expectedSession := &ChannelSession{
 		SessionID:     "session123",
@@ -35,13 +35,13 @@ func TestGetActiveSession_ExistingSession(t *testing.T) {
 		CreatedAt:     1000000,
 		LastMessageAt: 1000000,
 	}
-	
+
 	// Marshal it to JSON
 	data, _ := json.Marshal(expectedSession)
-	
+
 	// Mock KVGet to return the session
 	api.On("KVGet", "session_channel1").Return(data, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	session, err := p.GetActiveSession("channel1")
@@ -55,7 +55,7 @@ func TestGetActiveSession_ExistingSession(t *testing.T) {
 func TestSaveSession(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	session := &ChannelSession{
 		SessionID:     "session123",
 		ProjectPath:   "/tmp/test",
@@ -63,10 +63,10 @@ func TestSaveSession(t *testing.T) {
 		CreatedAt:     1000000,
 		LastMessageAt: 1000000,
 	}
-	
+
 	// Mock KVSet
 	api.On("KVSet", "session_channel1", mock.Anything).Return(nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	err := p.SaveSession("channel1", session)
@@ -76,10 +76,10 @@ func TestSaveSession(t *testing.T) {
 func TestDeleteSession(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// Mock KVDelete
 	api.On("KVDelete", "session_channel1").Return(nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	err := p.DeleteSession("channel1")
@@ -89,7 +89,7 @@ func TestDeleteSession(t *testing.T) {
 func TestUpdateSessionLastMessage(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	session := &ChannelSession{
 		SessionID:     "session123",
 		ProjectPath:   "/tmp/test",
@@ -97,15 +97,15 @@ func TestUpdateSessionLastMessage(t *testing.T) {
 		CreatedAt:     1000000,
 		LastMessageAt: 1000000,
 	}
-	
+
 	data, _ := json.Marshal(session)
-	
+
 	// Mock KVGet to return existing session
 	api.On("KVGet", "session_channel1").Return(data, nil)
-	
+
 	// Mock KVSet to save updated session
 	api.On("KVSet", "session_channel1", mock.Anything).Return(nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	err := p.UpdateSessionLastMessage("channel1")
@@ -115,10 +115,10 @@ func TestUpdateSessionLastMessage(t *testing.T) {
 func TestGetSessionForChannel_NoSession(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	// No session
 	api.On("KVGet", "session_channel1").Return(nil, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	sessionID := p.GetSessionForChannel("channel1")
@@ -128,16 +128,16 @@ func TestGetSessionForChannel_NoSession(t *testing.T) {
 func TestGetSessionForChannel_ExistingSession(t *testing.T) {
 	p := setupTestPlugin(t)
 	api := p.API.(*plugintest.API)
-	
+
 	session := &ChannelSession{
 		SessionID:   "session123",
 		ProjectPath: "/tmp/test",
 		UserID:      "user1",
 	}
-	
+
 	data, _ := json.Marshal(session)
 	api.On("KVGet", "session_channel1").Return(data, nil)
-	
+
 	defer api.AssertExpectations(t)
 
 	sessionID := p.GetSessionForChannel("channel1")
