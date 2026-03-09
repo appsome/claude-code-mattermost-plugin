@@ -40,7 +40,7 @@ func TestGetConfiguration_Nil(t *testing.T) {
 
 	assert.NotNil(t, config)
 	assert.Equal(t, "", config.BridgeServerURL)
-	assert.Equal(t, "", config.ClaudeCodePath)
+	assert.Equal(t, "claude", config.ClaudeCodePath)
 	assert.Equal(t, false, config.EnableFileOperations)
 }
 

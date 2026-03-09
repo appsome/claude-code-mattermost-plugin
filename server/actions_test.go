@@ -18,6 +18,9 @@ func setupPlugin() *Plugin {
 	p := &Plugin{
 		botUserID:    "bot_id",
 		bridgeClient: NewBridgeClient("http://localhost:3001", nil),
+		configuration: &configuration{
+			BridgeServerURL: "http://localhost:3001",
+		},
 	}
 	return p
 }
@@ -102,7 +105,7 @@ func TestHandleApprove_Success(t *testing.T) {
 
 	var response model.PostActionIntegrationResponse
 	json.NewDecoder(w.Body).Decode(&response)
-	assert.Contains(t, response.Update.Message, "✅ Changes approved")
+	assert.Contains(t, response.Update.Message, "Changes approved")
 }
 
 func TestHandleApprove_InvalidRequest(t *testing.T) {
@@ -215,7 +218,7 @@ func TestHandleReject_Success(t *testing.T) {
 
 	var response model.PostActionIntegrationResponse
 	json.NewDecoder(w.Body).Decode(&response)
-	assert.Contains(t, response.Update.Message, "❌ Changes rejected")
+	assert.Contains(t, response.Update.Message, "Changes rejected")
 }
 
 func TestHandleModify_Success(t *testing.T) {

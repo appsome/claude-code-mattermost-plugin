@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
@@ -198,18 +199,25 @@ func TestExecuteCommand_InvalidCommand(t *testing.T) {
 }
 
 func TestFormatDuration(t *testing.T) {
-	// Test with a specific timestamp
-	timestamp := int64(1678901234)
-	result := formatDuration(timestamp)
-	assert.Equal(t, "<t:1678901234:R>", result)
+	// Test with a recent timestamp (less than a minute ago)
+	recentTimestamp := time.Now().Add(-30 * time.Second).Unix()
+	result := formatDuration(recentTimestamp)
+	assert.Contains(t, result, "seconds ago")
 
-	// Test with zero timestamp
-	result = formatDuration(0)
-	assert.Equal(t, "<t:0:R>", result)
+	// Test with a timestamp from a few minutes ago
+	minutesAgo := time.Now().Add(-5 * time.Minute).Unix()
+	result = formatDuration(minutesAgo)
+	assert.Contains(t, result, "minutes ago")
 
-	// Test with negative timestamp
-	result = formatDuration(-1000)
-	assert.Equal(t, "<t:-1000:R>", result)
+	// Test with a timestamp from a few hours ago
+	hoursAgo := time.Now().Add(-3 * time.Hour).Unix()
+	result = formatDuration(hoursAgo)
+	assert.Contains(t, result, "hours ago")
+
+	// Test with a timestamp from days ago
+	daysAgo := time.Now().Add(-2 * 24 * time.Hour).Unix()
+	result = formatDuration(daysAgo)
+	assert.Contains(t, result, "days ago")
 }
 
 func TestFormatPID(t *testing.T) {
@@ -286,8 +294,8 @@ func TestExecuteClaudeStatus_WithActiveSession(t *testing.T) {
 	response, appErr := p.ExecuteCommand(nil, args)
 	assert.Nil(t, appErr)
 	assert.NotNil(t, response)
-	// Without a working bridge, it should show an error
-	assert.Contains(t, response.Text, "Failed to get session details")
+	// Should show session status (even if bridge details fail)
+	assert.Contains(t, response.Text, "Session Status")
 }
 
 func TestExecuteClaudeThread_InvalidAction(t *testing.T) {

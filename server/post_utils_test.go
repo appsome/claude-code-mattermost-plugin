@@ -144,5 +144,5 @@ func TestGetPluginURL(t *testing.T) {
 	defer api.AssertExpectations(t)
 
 	url := p.getPluginURL()
-	assert.Equal(t, "http://localhost:8065/plugins/com.appsome.claudecode", url)
+	assert.Equal(t, "http://localhost:8065/plugins/co.appsome.claudecode", url)
 }

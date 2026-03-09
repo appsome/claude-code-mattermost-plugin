@@ -288,7 +288,7 @@ func TestPostBotMessage_Error(t *testing.T) {
 	message := "test message"
 
 	api.On("CreatePost", mock.Anything).Return(nil, model.NewAppError("CreatePost", "error", nil, "", 500))
-	api.On("LogError", mock.Anything, mock.Anything, mock.Anything).Return()
+	api.On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 	p.postBotMessage(channelID, message)
 }
