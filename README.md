@@ -74,18 +74,36 @@ make clean        # Remove build artifacts
 
 Once installed, use these slash commands in any channel:
 
-- `/claude <message>` - Send a message to Claude Code
+### Session Management
 - `/claude-start [project-path]` - Start a new coding session
 - `/claude-stop` - Stop the current session
-- `/claude-help` - Show help information
+- `/claude-status` - Show current session status
+
+### Communication
+- `/claude <message>` - Send a message to Claude Code
+- `/claude-thread [action]` - Add thread context to Claude's session
+  - `/claude-thread` - Add thread messages as context
+  - `/claude-thread summarize` - Add context and ask Claude to summarize
+  - `/claude-thread implement` - Add context and ask Claude to implement
+  - `/claude-thread review` - Add context and ask Claude to review
+
+### File Operations
+- `/claude-files` - Browse and manage project files
+- `/claude-new-file <path>` - Create a new file
+
+### Help
+- `/claude-help` - Show detailed help information
 
 ## Project Status
 
-✅ **Issue #2: Project Setup** - COMPLETE  
-⏳ **Issue #3: Bridge Server** - In Progress  
-⏳ **Issue #4: Slash Commands** - Pending  
-⏳ **Issue #5: Interactive Components** - Pending  
-⏳ **Issue #6: File Operations** - Pending  
+✅ **Issue #2: Project Setup & Scaffolding** - COMPLETE  
+✅ **Issue #3: Bridge Server** - COMPLETE  
+✅ **Issue #4: Slash Commands & Bot Integration** - COMPLETE  
+✅ **Issue #5: Interactive Message Components** - COMPLETE  
+✅ **Issue #9: Thread Context Integration** - COMPLETE  
+🔄 **Issue #6: File Explorer & File Operations** - IN REVIEW (PR #11)  
+⏳ **Issue #7: Testing & Documentation** - IN PROGRESS  
+⏳ **Issue #8: Deployment & CI/CD** - PENDING  
 
 See [Issues](https://github.com/appsome/claude-code-mattermost-plugin/issues) for the full roadmap.
 
