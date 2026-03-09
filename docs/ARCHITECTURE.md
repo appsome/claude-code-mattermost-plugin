@@ -373,11 +373,18 @@ User                 Plugin              Bridge Server
 
 ### Metrics (Bridge Server)
 
-- Session count (active/total)
-- Message throughput (msg/sec)
-- CLI spawn time (ms)
-- Response latency (ms)
-- Error rate
+The bridge server exposes Prometheus metrics at `GET /metrics`:
+
+- `claude_code_sessions_total` - Total sessions created (counter)
+- `claude_code_sessions_active` - Currently active sessions (gauge)
+- `claude_code_messages_total` - Total messages processed (counter)
+- `claude_code_message_duration_seconds` - Message processing time (histogram)
+- `claude_code_websocket_connections` - Active WebSocket connections (gauge)
+- `claude_code_http_requests_total` - HTTP request count by method/path/status (counter)
+- `claude_code_http_request_duration_seconds` - HTTP request duration (histogram)
+- `claude_code_errors_total` - Error count by type (counter)
+- `claude_code_db_queries_total` - Database query count (counter)
+- `claude_code_file_operations_total` - File operation count (counter)
 
 ### Logs
 

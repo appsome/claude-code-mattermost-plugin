@@ -14,6 +14,12 @@ import { logger } from './logger.js';
 import { db } from './database.js';
 import { spawner } from './spawner.js';
 import WebSocketHandler from './websocket/handler.js';
+import { 
+  register, 
+  httpRequestCounter, 
+  httpRequestDuration,
+  activeSessionsGauge 
+} from './metrics.js';
 
 // Import API routers
 import sessionsRouter from './api/sessions.js';
@@ -33,9 +39,25 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging
+// Request logging and metrics
 app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
   logger.debug(`${req.method} ${req.path}`);
+  
+  // Track response to record metrics
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    httpRequestCounter.inc({
+      method: req.method,
+      path: req.route?.path || req.path,
+      status: res.statusCode.toString(),
+    });
+    httpRequestDuration.observe({
+      method: req.method,
+      path: req.route?.path || req.path,
+    }, duration);
+  });
+  
   next();
 });
 
@@ -44,13 +66,29 @@ const startTime = Date.now();
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
+  const activeSessions = spawner.getAllProcesses().length;
+  
+  // Update active sessions gauge
+  activeSessionsGauge.set(activeSessions);
+  
   res.json({
     status: 'ok',
     version: process.env.npm_package_version || '1.0.0',
     uptime: Math.floor((Date.now() - startTime) / 1000),
-    sessions: spawner.getAllProcesses().length,
+    sessions: activeSessions,
     timestamp: new Date().toISOString(),
   });
+});
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (req: Request, res: Response) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.send(await register.metrics());
+  } catch (err) {
+    logger.error('Failed to generate metrics:', err);
+    res.status(500).send('Failed to generate metrics');
+  }
 });
 
 // API routes
