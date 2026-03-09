@@ -15,6 +15,8 @@ const (
 	commandTriggerClaudeStop   = "claude-stop"
 	commandTriggerClaudeStatus = "claude-status"
 	commandTriggerClaudeThread = "claude-thread"
+	commandTriggerClaudeFiles  = "claude-files"
+	commandTriggerClaudeNewFile = "claude-new-file"
 	commandTriggerClaudeHelp   = "claude-help"
 )
 
@@ -77,6 +79,29 @@ func (p *Plugin) registerCommands() error {
 		return err
 	}
 
+	// Register /claude-files command
+	if err := p.API.RegisterCommand(&model.Command{
+		Trigger:          commandTriggerClaudeFiles,
+		AutoComplete:     true,
+		AutoCompleteDesc: "Browse project files",
+		DisplayName:      "Browse Files",
+		Description:      "Open file browser for the current Claude session",
+	}); err != nil {
+		return err
+	}
+
+	// Register /claude-new-file command
+	if err := p.API.RegisterCommand(&model.Command{
+		Trigger:          commandTriggerClaudeNewFile,
+		AutoComplete:     true,
+		AutoCompleteDesc: "Create a new file",
+		AutoCompleteHint: "[file-path]",
+		DisplayName:      "Create New File",
+		Description:      "Create a new file in the project",
+	}); err != nil {
+		return err
+	}
+
 	// Register /claude-help command
 	if err := p.API.RegisterCommand(&model.Command{
 		Trigger:          commandTriggerClaudeHelp,
@@ -112,6 +137,10 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executeClaudeStatus(args), nil
 	case commandTriggerClaudeThread:
 		return p.executeClaudeThread(args, commandArgs), nil
+	case commandTriggerClaudeFiles:
+		return p.executeClaudeFiles(args), nil
+	case commandTriggerClaudeNewFile:
+		return p.executeClaudeNewFile(args, commandArgs), nil
 	case commandTriggerClaudeHelp:
 		return p.executeClaudeHelp(), nil
 	default:
@@ -398,6 +427,8 @@ func (p *Plugin) executeClaudeHelp() *model.CommandResponse {
 		"- `/claude-stop` - Stop the current session\n" +
 		"- `/claude-status` - Show current session status\n" +
 		"- `/claude-thread [action]` - Add thread context to Claude (run in a thread)\n" +
+		"- `/claude-files` - Browse project files\n" +
+		"- `/claude-new-file <path>` - Create a new file\n" +
 		"- `/claude-help` - Show this help message\n\n" +
 		"**Getting Started:**\n" +
 		"1. Start a session with `/claude-start /path/to/your/project`\n" +
@@ -413,6 +444,10 @@ func (p *Plugin) executeClaudeHelp() *model.CommandResponse {
 		"- `/claude-thread summarize` - Add context and ask Claude to summarize\n" +
 		"- `/claude-thread implement` - Add context and ask Claude to implement\n" +
 		"- `/claude-thread review` - Add context and ask Claude to review\n\n" +
+		"**File Operations:**\n" +
+		"- `/claude-files` - Browse and manage project files\n" +
+		"- `/claude-new-file src/example.ts` - Create a new file\n" +
+		"- Click file actions to view, edit, or delete files\n\n" +
 		"**Configuration:**\n" +
 		"Go to **System Console > Plugins > Claude Code** to configure settings.\n\n" +
 		"For more information, visit: https://github.com/appsome/claude-code-mattermost-plugin"
