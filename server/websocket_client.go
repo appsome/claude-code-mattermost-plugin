@@ -100,7 +100,7 @@ func (ws *WebSocketClient) handleMessages() {
 			err := conn.ReadJSON(&msg)
 			if err != nil {
 				ws.plugin.API.LogError("WebSocket read error", "error", err.Error())
-				
+
 				// Try to reconnect
 				if !ws.reconnecting {
 					go ws.reconnect()
@@ -183,12 +183,12 @@ func (ws *WebSocketClient) handleStatus(channelID string, msg *WebSocketMessage)
 	// Handle stopped status
 	if data.Status == "stopped" {
 		ws.plugin.postBotMessage(channelID, "⏹️ Claude Code session stopped.")
-		
+
 		// Clean up local session
 		if err := ws.plugin.DeleteSession(channelID); err != nil {
 			ws.plugin.API.LogWarn("Failed to delete session after stop", "error", err.Error())
 		}
-		
+
 		// Unsubscribe
 		ws.Unsubscribe(msg.SessionID)
 	} else if data.Message != "" {

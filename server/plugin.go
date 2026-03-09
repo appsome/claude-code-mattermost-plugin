@@ -39,7 +39,7 @@ func (p *Plugin) OnActivate() error {
 		DisplayName: "Claude Code",
 		Description: "AI-powered coding assistant",
 	}
-	
+
 	// Try to create bot (will fail if it already exists, which is fine)
 	createdBot, appErr := p.API.CreateBot(bot)
 	if appErr != nil {

@@ -18,9 +18,9 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
-	BridgeServerURL       string
-	ClaudeCodePath        string
-	EnableFileOperations  bool
+	BridgeServerURL      string
+	ClaudeCodePath       string
+	EnableFileOperations bool
 }
 
 // Clone shallow copies the configuration. Your implementation may require a deep copy if

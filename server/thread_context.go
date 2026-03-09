@@ -62,7 +62,7 @@ func (p *Plugin) GetThreadContext(rootPostID, channelID string, maxMessages int)
 	// Write thread header
 	rootPost := postList.Posts[rootPostID]
 	timestamp := time.Unix(rootPost.CreateAt/1000, 0).Format("Jan 2, 2006 15:04 MST")
-	
+
 	content.WriteString(fmt.Sprintf("Thread Context from #%s (started %s)\n\n", channel.Name, timestamp))
 
 	// Format each post
@@ -77,7 +77,7 @@ func (p *Plugin) GetThreadContext(rootPostID, channelID string, maxMessages int)
 
 		// Format timestamp
 		postTime := time.Unix(post.CreateAt/1000, 0).Format("15:04")
-		
+
 		// Write message
 		content.WriteString(fmt.Sprintf("[%s at %s]:\n", user.Username, postTime))
 		content.WriteString(post.Message)

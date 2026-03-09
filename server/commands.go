@@ -303,12 +303,12 @@ func (p *Plugin) executeClaudeThread(args *model.CommandArgs, action string) *mo
 		warningMsg := fmt.Sprintf("⚠️ This thread has %d participants. Context includes messages from:\n%s\n\nAre you sure you want to share this with Claude?",
 			len(threadContext.Participants),
 			strings.Join(threadContext.Participants, ", "))
-		
+
 		// For now, just warn. In the future, could add confirmation dialog
-		p.API.LogWarn("Thread context includes many participants", 
+		p.API.LogWarn("Thread context includes many participants",
 			"count", len(threadContext.Participants),
 			"participants", threadContext.Participants)
-		
+
 		// Could return warning here, but for MVP let's proceed
 		_ = warningMsg
 	}
@@ -329,7 +329,7 @@ func (p *Plugin) executeClaudeThread(args *model.CommandArgs, action string) *mo
 	if action != "" {
 		successMsg += fmt.Sprintf("\nClaude will now: **%s**", action)
 	}
-	
+
 	// Post confirmation from bot
 	p.postBotMessage(args.ChannelId, successMsg)
 

@@ -81,9 +81,9 @@ lint:
 check-style: lint fmt
 	@echo "Code style check complete"
 
-# Check Go version
+# Check Go version (1.21+)
 check-go-version:
-	@go version | grep -q 'go1.21' || (echo "Go 1.21+ required" && exit 1)
+	@go version | grep -qE 'go1\.(2[1-9]|[3-9][0-9])' || (echo "Go 1.21+ required" && exit 1)
 
 # Check Node version
 check-node-version:
