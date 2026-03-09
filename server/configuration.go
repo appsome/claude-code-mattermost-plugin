@@ -18,8 +18,13 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
+	// BridgeServerURL is the URL of the remote bridge server
+	// If set, the plugin will use HTTP/WebSocket to communicate with the bridge
+	// If empty, the plugin will spawn CLI processes locally (embedded mode)
+	BridgeServerURL string
+
 	// ClaudeCodePath is the path to the Claude Code CLI binary
-	// If empty, defaults to "claude" (looks up in PATH)
+	// Used in embedded mode. If empty, defaults to "claude" (looks up in PATH)
 	ClaudeCodePath string
 
 	// EnableFileOperations allows Claude Code to perform file operations
@@ -106,4 +111,10 @@ func (p *Plugin) OnConfigurationChange() error {
 	p.setConfiguration(configuration)
 
 	return nil
+}
+
+// UseBridgeMode returns true if the plugin should use the remote bridge server
+func (p *Plugin) UseBridgeMode() bool {
+	config := p.getConfiguration()
+	return config.BridgeServerURL != ""
 }

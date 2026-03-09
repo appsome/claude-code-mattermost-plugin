@@ -118,9 +118,25 @@ func (p *Plugin) GetThreadContext(rootPostID, channelID string, maxMessages int)
 	}, nil
 }
 
-// SendThreadContext sends thread context to the CLI process
+// SendThreadContext sends thread context based on mode
 func (p *Plugin) SendThreadContext(sessionID string, context *ThreadContext, action string) error {
-	// Build context message
+	if p.UseBridgeMode() {
+		// Bridge mode: send via HTTP
+		return p.bridgeClient.SendContext(sessionID, &ContextRequest{
+			Source:   "mattermost-thread",
+			ThreadID: context.RootPostID,
+			Content:  context.Content,
+			Action:   action,
+			Metadata: &ContextMetadata{
+				ChannelName:  context.ChannelName,
+				RootPostID:   context.RootPostID,
+				MessageCount: context.MessageCount,
+				Participants: context.Participants,
+			},
+		})
+	}
+
+	// Embedded mode: send as JSON to CLI process
 	contextMsg := ContextMessage{
 		Type:         "context",
 		Source:       "mattermost-thread",
@@ -132,12 +148,10 @@ func (p *Plugin) SendThreadContext(sessionID string, context *ThreadContext, act
 		Participants: context.Participants,
 	}
 
-	// Marshal to JSON
 	jsonBytes, err := json.Marshal(contextMsg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal context: %w", err)
 	}
 
-	// Send to CLI process
 	return p.processManager.SendInput(sessionID, string(jsonBytes))
 }

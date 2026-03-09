@@ -9,6 +9,14 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin"
 )
 
+// sendToSession sends a message to a session (bridge or embedded mode)
+func (p *Plugin) sendToSession(sessionID, message string) error {
+	if p.UseBridgeMode() {
+		return p.bridgeClient.SendMessage(sessionID, message)
+	}
+	return p.processManager.SendInput(sessionID, message)
+}
+
 // ServeHTTP handles HTTP requests for the plugin (actions and dialogs)
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
@@ -61,11 +69,18 @@ func (p *Plugin) handleApprove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send approval to CLI process
-	approveMsg := fmt.Sprintf("approve %s", changeID)
-	if err := p.processManager.SendInput(sessionID, approveMsg); err != nil {
-		p.writeError(w, err)
-		return
+	// Send approval
+	if p.UseBridgeMode() {
+		if err := p.bridgeClient.ApproveChange(sessionID, changeID); err != nil {
+			p.writeError(w, err)
+			return
+		}
+	} else {
+		approveMsg := fmt.Sprintf("approve %s", changeID)
+		if err := p.processManager.SendInput(sessionID, approveMsg); err != nil {
+			p.writeError(w, err)
+			return
+		}
 	}
 
 	user, _ := p.API.GetUser(request.UserId)
@@ -107,11 +122,18 @@ func (p *Plugin) handleReject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send rejection to CLI process
-	rejectMsg := fmt.Sprintf("reject %s", changeID)
-	if err := p.processManager.SendInput(sessionID, rejectMsg); err != nil {
-		p.writeError(w, err)
-		return
+	// Send rejection
+	if p.UseBridgeMode() {
+		if err := p.bridgeClient.RejectChange(sessionID, changeID); err != nil {
+			p.writeError(w, err)
+			return
+		}
+	} else {
+		rejectMsg := fmt.Sprintf("reject %s", changeID)
+		if err := p.processManager.SendInput(sessionID, rejectMsg); err != nil {
+			p.writeError(w, err)
+			return
+		}
 	}
 
 	user, _ := p.API.GetUser(request.UserId)
@@ -192,7 +214,7 @@ func (p *Plugin) handleContinue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := p.processManager.SendInput(sessionID, "continue"); err != nil {
+	if err := p.sendToSession(sessionID, "continue"); err != nil {
 		p.writeError(w, err)
 		return
 	}
@@ -221,7 +243,7 @@ func (p *Plugin) handleExplain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := p.processManager.SendInput(sessionID, "explain that"); err != nil {
+	if err := p.sendToSession(sessionID, "explain that"); err != nil {
 		p.writeError(w, err)
 		return
 	}
@@ -307,11 +329,18 @@ func (p *Plugin) handleApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send apply command to CLI process
-	applyMsg := fmt.Sprintf("apply %s", changeID)
-	if err := p.processManager.SendInput(sessionID, applyMsg); err != nil {
-		p.writeError(w, err)
-		return
+	// Send apply
+	if p.UseBridgeMode() {
+		if err := p.bridgeClient.ApproveChange(sessionID, changeID); err != nil {
+			p.writeError(w, err)
+			return
+		}
+	} else {
+		applyMsg := fmt.Sprintf("apply %s", changeID)
+		if err := p.processManager.SendInput(sessionID, applyMsg); err != nil {
+			p.writeError(w, err)
+			return
+		}
 	}
 
 	response := &model.PostActionIntegrationResponse{
@@ -344,11 +373,18 @@ func (p *Plugin) handleDiscard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send discard command to CLI process
-	discardMsg := fmt.Sprintf("discard %s", changeID)
-	if err := p.processManager.SendInput(sessionID, discardMsg); err != nil {
-		p.writeError(w, err)
-		return
+	// Send discard
+	if p.UseBridgeMode() {
+		if err := p.bridgeClient.RejectChange(sessionID, changeID); err != nil {
+			p.writeError(w, err)
+			return
+		}
+	} else {
+		discardMsg := fmt.Sprintf("discard %s", changeID)
+		if err := p.processManager.SendInput(sessionID, discardMsg); err != nil {
+			p.writeError(w, err)
+			return
+		}
 	}
 
 	response := &model.PostActionIntegrationResponse{
@@ -385,12 +421,24 @@ func (p *Plugin) handleView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// For now, just post a message that file viewing is not available in embedded mode
-	// In a future version, we could read the file directly from the project path
+	var message string
+	if p.UseBridgeMode() {
+		// Bridge mode: get file content from bridge
+		content, err := p.bridgeClient.GetFileContent(sessionID, filePath)
+		if err != nil {
+			p.writeError(w, err)
+			return
+		}
+		message = fmt.Sprintf("**Full content of %s:**\n```\n%s\n```", filePath, content)
+	} else {
+		// Embedded mode: file viewing not directly supported
+		message = fmt.Sprintf("File: `%s`\n\nFile viewing is available in the project directory.", filePath)
+	}
+
 	ephemeral := &model.Post{
 		ChannelId: request.ChannelId,
 		UserId:    p.botUserID,
-		Message:   fmt.Sprintf("File: `%s`\n\nFile viewing is available in the project directory.", filePath),
+		Message:   message,
 	}
 
 	p.API.SendEphemeralPost(request.UserId, ephemeral)
@@ -420,7 +468,7 @@ func (p *Plugin) handleMenu(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := p.processManager.SendInput(sessionID, selectedValue); err != nil {
+	if err := p.sendToSession(sessionID, selectedValue); err != nil {
 		p.writeError(w, err)
 		return
 	}

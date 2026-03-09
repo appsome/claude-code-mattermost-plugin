@@ -87,7 +87,7 @@ func (p *Plugin) UpdateSessionLastMessage(channelID string) error {
 	return p.SaveSession(channelID, session)
 }
 
-// CreateSession creates a new session and spawns a CLI process
+// CreateSession creates a new session using either bridge or embedded mode
 func (p *Plugin) CreateSession(channelID, projectPath, userID string) (*ChannelSession, error) {
 	// Check if there's already an active session
 	existing, err := p.GetActiveSession(channelID)
@@ -99,16 +99,31 @@ func (p *Plugin) CreateSession(channelID, projectPath, userID string) (*ChannelS
 		return nil, fmt.Errorf("channel already has an active session")
 	}
 
-	// Generate a new session ID
-	sessionID := model.NewId()
+	var sessionID string
+	now := time.Now().Unix()
 
-	// Spawn CLI process
-	if err := p.processManager.Spawn(sessionID, projectPath, channelID, userID); err != nil {
-		return nil, fmt.Errorf("failed to spawn CLI process: %w", err)
+	if p.UseBridgeMode() {
+		// Bridge mode: create session via bridge server
+		bridgeSession, err := p.bridgeClient.CreateSession(projectPath, userID, channelID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create session on bridge server: %w", err)
+		}
+		sessionID = bridgeSession.ID
+
+		// Subscribe WebSocket to this session
+		if p.wsClient != nil {
+			p.wsClient.Subscribe(sessionID, channelID)
+		}
+	} else {
+		// Embedded mode: spawn CLI process locally
+		sessionID = model.NewId()
+
+		if err := p.processManager.Spawn(sessionID, projectPath, channelID, userID); err != nil {
+			return nil, fmt.Errorf("failed to spawn CLI process: %w", err)
+		}
 	}
 
 	// Store session locally
-	now := time.Now().Unix()
 	session := &ChannelSession{
 		SessionID:     sessionID,
 		ProjectPath:   projectPath,
@@ -119,8 +134,15 @@ func (p *Plugin) CreateSession(channelID, projectPath, userID string) (*ChannelS
 	}
 
 	if err := p.SaveSession(channelID, session); err != nil {
-		// Clean up CLI process
-		_ = p.processManager.Kill(sessionID)
+		// Clean up on failure
+		if p.UseBridgeMode() {
+			_ = p.bridgeClient.DeleteSession(sessionID)
+			if p.wsClient != nil {
+				p.wsClient.Unsubscribe(sessionID)
+			}
+		} else {
+			_ = p.processManager.Kill(sessionID)
+		}
 		return nil, fmt.Errorf("failed to save session: %w", err)
 	}
 
@@ -138,10 +160,22 @@ func (p *Plugin) StopSession(channelID string) error {
 		return fmt.Errorf("no active session for channel")
 	}
 
-	// Kill the CLI process
-	if err := p.processManager.Kill(session.SessionID); err != nil {
-		p.API.LogWarn("Failed to kill CLI process", "error", err.Error())
-		// Continue with local cleanup
+	if p.UseBridgeMode() {
+		// Bridge mode: unsubscribe WebSocket and delete on bridge
+		if p.wsClient != nil {
+			p.wsClient.Unsubscribe(session.SessionID)
+		}
+
+		if err := p.bridgeClient.DeleteSession(session.SessionID); err != nil {
+			p.API.LogWarn("Failed to delete session on bridge server", "error", err.Error())
+			// Continue with local cleanup
+		}
+	} else {
+		// Embedded mode: kill the CLI process
+		if err := p.processManager.Kill(session.SessionID); err != nil {
+			p.API.LogWarn("Failed to kill CLI process", "error", err.Error())
+			// Continue with local cleanup
+		}
 	}
 
 	// Remove from local storage
@@ -166,11 +200,18 @@ func (p *Plugin) GetSessionForChannel(channelID string) string {
 	return session.SessionID
 }
 
-// IsSessionActive checks if a session is active and has a running process
+// IsSessionActive checks if a session is active
 func (p *Plugin) IsSessionActive(channelID string) bool {
 	session, err := p.GetActiveSession(channelID)
 	if err != nil || session == nil {
 		return false
 	}
+
+	if p.UseBridgeMode() {
+		// In bridge mode, just check if session exists in KV store
+		return true
+	}
+
+	// In embedded mode, check if process is running
 	return p.processManager.IsRunning(session.SessionID)
 }

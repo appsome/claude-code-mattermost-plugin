@@ -27,17 +27,17 @@
         "key": "BridgeServerURL",
         "display_name": "Bridge Server URL",
         "type": "text",
-        "help_text": "URL of the Claude Code bridge server (e.g., http://localhost:3002)",
-        "placeholder": "http://localhost:3002",
-        "default": "http://localhost:3002"
+        "help_text": "URL of the Claude Code bridge server. Leave empty to use embedded mode (spawns CLI locally). For Kubernetes deployments, set this to your bridge server URL.",
+        "placeholder": "http://bridge-server:3002",
+        "default": ""
       },
       {
         "key": "ClaudeCodePath",
         "display_name": "Claude Code CLI Path",
         "type": "text",
-        "help_text": "Path to the Claude Code CLI executable",
-        "placeholder": "/usr/local/bin/claude-code",
-        "default": "/usr/local/bin/claude-code"
+        "help_text": "Path to the Claude Code CLI executable (only used in embedded mode when Bridge Server URL is empty)",
+        "placeholder": "claude",
+        "default": "claude"
       },
       {
         "key": "EnableFileOperations",

@@ -34,11 +34,18 @@ func (p *Plugin) handleModifyDialog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send modification request to CLI process
-	modifyMsg := fmt.Sprintf("modify %s: %s", changeID, instructions)
-	if err := p.processManager.SendInput(sessionID, modifyMsg); err != nil {
-		p.writeDialogError(w, fmt.Sprintf("Failed to send modification: %s", err.Error()))
-		return
+	// Send modification request
+	if p.UseBridgeMode() {
+		if err := p.bridgeClient.ModifyChange(sessionID, changeID, instructions); err != nil {
+			p.writeDialogError(w, fmt.Sprintf("Failed to send modification: %s", err.Error()))
+			return
+		}
+	} else {
+		modifyMsg := fmt.Sprintf("modify %s: %s", changeID, instructions)
+		if err := p.processManager.SendInput(sessionID, modifyMsg); err != nil {
+			p.writeDialogError(w, fmt.Sprintf("Failed to send modification: %s", err.Error()))
+			return
+		}
 	}
 
 	// Post confirmation message
@@ -78,7 +85,7 @@ func (p *Plugin) handleConfirmDialog(w http.ResponseWriter, r *http.Request) {
 	// Execute the confirmed action
 	switch action {
 	case "undo":
-		if err := p.processManager.SendInput(sessionID, "undo"); err != nil {
+		if err := p.sendToSession(sessionID, "undo"); err != nil {
 			p.writeDialogError(w, fmt.Sprintf("Failed to undo: %s", err.Error()))
 			return
 		}

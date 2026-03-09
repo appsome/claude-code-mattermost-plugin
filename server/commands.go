@@ -113,7 +113,7 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 	case commandTriggerClaudeThread:
 		return p.executeClaudeThread(args, commandArgs), nil
 	case commandTriggerClaudeHelp:
-		return p.executeClaudeHelp(args), nil
+		return p.executeClaudeHelp(), nil
 	default:
 		return respondEphemeral(fmt.Sprintf("Unknown command: %s", trigger)), nil
 	}
@@ -136,15 +136,23 @@ func (p *Plugin) executeClaude(args *model.CommandArgs, message string) *model.C
 		return respondEphemeral("No active session. Use `/claude-start [project-path]` to begin.")
 	}
 
-	// Check if process is running
-	if !p.processManager.IsRunning(session.SessionID) {
-		return respondEphemeral("Session process is not running. Use `/claude-stop` and start a new session.")
-	}
+	// Send message based on mode
+	if p.UseBridgeMode() {
+		// Bridge mode: send via HTTP
+		if err := p.bridgeClient.SendMessage(session.SessionID, message); err != nil {
+			p.API.LogError("Failed to send message to bridge", "error", err.Error())
+			return respondEphemeral(fmt.Sprintf("Failed to send message: %s", err.Error()))
+		}
+	} else {
+		// Embedded mode: check if process is running and send via stdin
+		if !p.processManager.IsRunning(session.SessionID) {
+			return respondEphemeral("Session process is not running. Use `/claude-stop` and start a new session.")
+		}
 
-	// Send message to CLI process
-	if err := p.processManager.SendInput(session.SessionID, message); err != nil {
-		p.API.LogError("Failed to send message to CLI", "error", err.Error())
-		return respondEphemeral(fmt.Sprintf("Failed to send message: %s", err.Error()))
+		if err := p.processManager.SendInput(session.SessionID, message); err != nil {
+			p.API.LogError("Failed to send message to CLI", "error", err.Error())
+			return respondEphemeral(fmt.Sprintf("Failed to send message: %s", err.Error()))
+		}
 	}
 
 	// Store user message
@@ -167,7 +175,7 @@ func (p *Plugin) executeClaude(args *model.CommandArgs, message string) *model.C
 		p.API.LogWarn("Failed to create user message post", "error", appErr.Error())
 	}
 
-	// Response will come via output handler, so return empty response
+	// Response will come via WebSocket/output handler, so return empty response
 	return &model.CommandResponse{}
 }
 
@@ -240,40 +248,67 @@ func (p *Plugin) executeClaudeStatus(args *model.CommandArgs) *model.CommandResp
 		return respondEphemeral("No active session. Use `/claude-start [project-path]` to begin.")
 	}
 
-	// Get process info
-	process := p.processManager.GetProcess(session.SessionID)
 	var processStatus string
 	var pid string
-	if process != nil {
-		select {
-		case <-process.done:
-			processStatus = "Exited"
+	var messageCount int
+
+	if p.UseBridgeMode() {
+		// Bridge mode: get status from bridge server
+		bridgeSession, err := p.bridgeClient.GetSession(session.SessionID)
+		if err != nil {
+			p.API.LogError("Failed to get session from bridge", "error", err.Error())
+			processStatus = "Unknown"
 			pid = "N/A"
-		default:
-			processStatus = "Running"
-			if process.Cmd != nil && process.Cmd.Process != nil {
-				pid = fmt.Sprintf("PID %d", process.Cmd.Process.Pid)
-			} else {
-				pid = "Unknown"
-			}
+		} else {
+			processStatus = bridgeSession.Status
+			pid = formatPID(bridgeSession.CLIPid)
+		}
+
+		// Get message count from bridge
+		messages, err := p.bridgeClient.GetMessages(session.SessionID, 0)
+		if err == nil {
+			messageCount = len(messages)
 		}
 	} else {
-		processStatus = "Not found"
-		pid = "N/A"
+		// Embedded mode: get process info
+		process := p.processManager.GetProcess(session.SessionID)
+		if process != nil {
+			select {
+			case <-process.done:
+				processStatus = "Exited"
+				pid = "N/A"
+			default:
+				processStatus = "Running"
+				if process.Cmd != nil && process.Cmd.Process != nil {
+					pid = fmt.Sprintf("PID %d", process.Cmd.Process.Pid)
+				} else {
+					pid = "Unknown"
+				}
+			}
+		} else {
+			processStatus = "Not found"
+			pid = "N/A"
+		}
+
+		// Get message count from local store
+		messageCount, _ = p.messageStore.GetMessageCount(session.SessionID)
 	}
 
 	// Calculate uptime
 	uptime := formatDuration(session.CreatedAt)
 	lastMessage := formatDuration(session.LastMessageAt)
 
-	// Get message count
-	messageCount, _ := p.messageStore.GetMessageCount(session.SessionID)
-
 	// Format status
+	mode := "Embedded"
+	if p.UseBridgeMode() {
+		mode = "Bridge"
+	}
+
 	statusMsg := fmt.Sprintf(`### Session Status
 
 **Project:** %s
 **Session ID:** %s
+**Mode:** %s
 **Status:** %s
 **Process:** %s
 **Uptime:** %s
@@ -281,6 +316,7 @@ func (p *Plugin) executeClaudeStatus(args *model.CommandArgs) *model.CommandResp
 **Message Count:** %d`,
 		session.ProjectPath,
 		session.SessionID,
+		mode,
 		processStatus,
 		pid,
 		uptime,
@@ -309,8 +345,8 @@ func (p *Plugin) executeClaudeThread(args *model.CommandArgs, action string) *mo
 		return respondEphemeral("No active Claude session. Start one with `/claude-start [project-path]` first.")
 	}
 
-	// Check if process is running
-	if !p.processManager.IsRunning(session.SessionID) {
+	// In embedded mode, check if process is running
+	if !p.UseBridgeMode() && !p.processManager.IsRunning(session.SessionID) {
 		return respondEphemeral("Session process is not running. Use `/claude-stop` and start a new session.")
 	}
 
@@ -330,9 +366,9 @@ func (p *Plugin) executeClaudeThread(args *model.CommandArgs, action string) *mo
 			"participants", threadContext.Participants)
 	}
 
-	// Send context to CLI process
+	// Send context based on mode
 	if err := p.SendThreadContext(session.SessionID, threadContext, action); err != nil {
-		p.API.LogError("Failed to send thread context to CLI", "error", err.Error())
+		p.API.LogError("Failed to send thread context", "error", err.Error())
 		return respondEphemeral(fmt.Sprintf("Failed to send context: %s", err.Error()))
 	}
 
@@ -354,7 +390,7 @@ func (p *Plugin) executeClaudeThread(args *model.CommandArgs, action string) *mo
 }
 
 // executeClaudeHelp handles the /claude-help command
-func (p *Plugin) executeClaudeHelp(args *model.CommandArgs) *model.CommandResponse {
+func (p *Plugin) executeClaudeHelp() *model.CommandResponse {
 	helpText := "### Claude Code - AI Coding Assistant\n\n" +
 		"**Available Commands:**\n" +
 		"- `/claude <message>` - Send a message to Claude Code\n" +
@@ -403,4 +439,11 @@ func formatDuration(unixTimestamp int64) string {
 		return fmt.Sprintf("%d hours ago", int(elapsed.Hours()))
 	}
 	return fmt.Sprintf("%d days ago", int(elapsed.Hours()/24))
+}
+
+func formatPID(pid *int) string {
+	if pid == nil {
+		return "Not running"
+	}
+	return fmt.Sprintf("PID %d", *pid)
 }

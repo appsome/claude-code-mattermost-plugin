@@ -22,6 +22,16 @@ type Plugin struct {
 	// botUserID is the ID of the bot user created by the plugin
 	botUserID string
 
+	// --- Bridge mode (remote bridge server) ---
+
+	// bridgeClient is the HTTP client for the Claude Code bridge server
+	bridgeClient *BridgeClient
+
+	// wsClient is the WebSocket client for real-time updates from the bridge
+	wsClient *WebSocketClient
+
+	// --- Embedded mode (local CLI process management) ---
+
 	// processManager manages CLI processes
 	processManager *ProcessManager
 
@@ -56,24 +66,38 @@ func (p *Plugin) OnActivate() error {
 		p.API.LogInfo("Created new bot user", "user_id", createdBot.UserId)
 	}
 
-	// Initialize message store
+	// Initialize message store (used in both modes)
 	p.messageStore = NewMessageStore(p.API)
 
-	// Initialize output handler (must be before process manager)
-	p.outputHandler = NewOutputHandler(p)
+	config := p.getConfiguration()
 
-	// Initialize process manager
-	p.processManager = NewProcessManager(p)
+	if p.UseBridgeMode() {
+		// Bridge mode: use remote bridge server
+		p.API.LogInfo("Initializing in bridge mode", "bridge_url", config.BridgeServerURL)
+
+		p.bridgeClient = NewBridgeClient(config.BridgeServerURL, p.API)
+
+		p.wsClient = NewWebSocketClient(config.BridgeServerURL, p)
+		if err := p.wsClient.Connect(); err != nil {
+			p.API.LogWarn("Failed to connect to bridge WebSocket", "error", err.Error())
+			// Don't fail activation if WebSocket connection fails
+		}
+	} else {
+		// Embedded mode: manage CLI processes locally
+		p.API.LogInfo("Initializing in embedded mode", "cli_path", config.ClaudeCodePath)
+
+		p.outputHandler = NewOutputHandler(p)
+		p.processManager = NewProcessManager(p)
+	}
 
 	// Register slash commands
 	if err := p.registerCommands(); err != nil {
 		return fmt.Errorf("failed to register commands: %w", err)
 	}
 
-	config := p.getConfiguration()
 	p.API.LogInfo("Claude Code plugin activated successfully",
 		"bot_user_id", p.botUserID,
-		"cli_path", config.ClaudeCodePath,
+		"bridge_mode", p.UseBridgeMode(),
 	)
 
 	return nil
@@ -81,9 +105,16 @@ func (p *Plugin) OnActivate() error {
 
 // OnDeactivate is invoked when the plugin is deactivated.
 func (p *Plugin) OnDeactivate() error {
-	// Kill all running CLI processes
-	if p.processManager != nil {
-		p.processManager.KillAll()
+	if p.UseBridgeMode() {
+		// Bridge mode: close WebSocket connection
+		if p.wsClient != nil {
+			p.wsClient.Close()
+		}
+	} else {
+		// Embedded mode: kill all running CLI processes
+		if p.processManager != nil {
+			p.processManager.KillAll()
+		}
 	}
 
 	p.API.LogInfo("Claude Code plugin deactivated")
