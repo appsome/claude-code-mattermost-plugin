@@ -346,7 +346,7 @@ func (pm *ProcessManager) GetRunningCount() int {
 
 // GetAllProcesses returns a slice of all running processes
 func (pm *ProcessManager) GetAllProcesses() []*CLIProcess {
-	var processes []*CLIProcess
+	processes := []*CLIProcess{}
 	pm.processes.Range(func(key, value interface{}) bool {
 		process := value.(*CLIProcess)
 		select {
