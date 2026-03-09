@@ -246,3 +246,127 @@ func (bc *BridgeClient) SendContext(sessionID string, contextReq *ContextRequest
 
 	return nil
 }
+
+// ApproveChange approves a code change
+func (bc *BridgeClient) ApproveChange(sessionID, changeID string) error {
+	reqBody := map[string]string{
+		"changeId": changeID,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	resp, err := bc.httpClient.Post(
+		fmt.Sprintf("%s/api/sessions/%s/approve", bc.baseURL, sessionID),
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to approve change: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("bridge server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// RejectChange rejects a code change
+func (bc *BridgeClient) RejectChange(sessionID, changeID string) error {
+	reqBody := map[string]string{
+		"changeId": changeID,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	resp, err := bc.httpClient.Post(
+		fmt.Sprintf("%s/api/sessions/%s/reject", bc.baseURL, sessionID),
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to reject change: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("bridge server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// ModifyChange requests modifications to a code change
+func (bc *BridgeClient) ModifyChange(sessionID, changeID, instructions string) error {
+	reqBody := map[string]string{
+		"changeId":     changeID,
+		"instructions": instructions,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	resp, err := bc.httpClient.Post(
+		fmt.Sprintf("%s/api/sessions/%s/modify", bc.baseURL, sessionID),
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to modify change: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("bridge server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// GetFileContent retrieves the full content of a file from the session's project
+func (bc *BridgeClient) GetFileContent(sessionID, filename string) (string, error) {
+	reqBody := map[string]string{
+		"filename": filename,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	resp, err := bc.httpClient.Post(
+		fmt.Sprintf("%s/api/sessions/%s/file", bc.baseURL, sessionID),
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to get file content: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("bridge server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return result.Content, nil
+}

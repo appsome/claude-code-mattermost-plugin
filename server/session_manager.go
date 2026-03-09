@@ -155,3 +155,12 @@ func (p *Plugin) StopSession(channelID string) error {
 
 	return nil
 }
+
+// GetSessionForChannel returns the session ID for a channel (helper for actions)
+func (p *Plugin) GetSessionForChannel(channelID string) string {
+	session, err := p.GetActiveSession(channelID)
+	if err != nil || session == nil {
+		return ""
+	}
+	return session.SessionID
+}
