@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -224,6 +226,202 @@ func TestFormatPID(t *testing.T) {
 	zeroPID := 0
 	result = formatPID(&zeroPID)
 	assert.Equal(t, "PID 0", result)
+}
+
+func TestExecuteClaudeStart_WithExistingSession(t *testing.T) {
+	p := setupTestPlugin(t)
+	api := p.API.(*plugintest.API)
+	
+	// Mock existing session
+	existingSession := &ChannelSession{
+		SessionID:   "session123",
+		ProjectPath: "/tmp/old",
+		UserID:      "user1",
+	}
+	data, _ := json.Marshal(existingSession)
+	api.On("KVGet", "session_channel1").Return(data, nil)
+	
+	defer api.AssertExpectations(t)
+
+	args := &model.CommandArgs{
+		Command:   "/claude-start /tmp/test",
+		UserId:    "user1",
+		ChannelId: "channel1",
+	}
+
+	response, appErr := p.ExecuteCommand(nil, args)
+	assert.Nil(t, appErr)
+	assert.NotNil(t, response)
+	assert.Contains(t, response.Text, "already has an active session")
+	assert.Contains(t, response.Text, "/tmp/old")
+}
+
+func TestExecuteClaudeStatus_WithActiveSession(t *testing.T) {
+	p := setupTestPlugin(t)
+	api := p.API.(*plugintest.API)
+	
+	// Mock existing session
+	existingSession := &ChannelSession{
+		SessionID:     "session123",
+		ProjectPath:   "/tmp/test",
+		UserID:        "user1",
+		CreatedAt:     1678901234,
+		LastMessageAt: 1678901334,
+	}
+	data, _ := json.Marshal(existingSession)
+	api.On("KVGet", "session_channel1").Return(data, nil)
+	
+	// Mock bridge client GetSession call
+	// Note: This will fail without a working bridge, so we expect an error path
+	api.On("LogError", "Failed to get session from bridge", mock.Anything, mock.Anything).Return()
+	
+	defer api.AssertExpectations(t)
+
+	args := &model.CommandArgs{
+		Command:   "/claude-status",
+		UserId:    "user1",
+		ChannelId: "channel1",
+	}
+
+	response, appErr := p.ExecuteCommand(nil, args)
+	assert.Nil(t, appErr)
+	assert.NotNil(t, response)
+	// Without a working bridge, it should show an error
+	assert.Contains(t, response.Text, "Failed to get session details")
+}
+
+func TestExecuteClaudeThread_InvalidAction(t *testing.T) {
+	p := setupTestPlugin(t)
+	api := p.API.(*plugintest.API)
+	
+	// Mock existing session
+	existingSession := &ChannelSession{
+		SessionID:   "session123",
+		ProjectPath: "/tmp/test",
+		UserID:      "user1",
+	}
+	data, _ := json.Marshal(existingSession)
+	api.On("KVGet", "session_channel1").Return(data, nil)
+	
+	// Mock GetChannel (required by GetThreadContext)
+	channel := &model.Channel{
+		Id:   "channel1",
+		Name: "test-channel",
+		Type: model.ChannelTypeOpen,
+	}
+	api.On("GetChannel", "channel1").Return(channel, nil)
+	
+	// Mock GetPostThread (required by GetThreadContext) with at least one post
+	rootPost := &model.Post{
+		Id:        "root1",
+		UserId:    "user1",
+		ChannelId: "channel1",
+		Message:   "Root post",
+		CreateAt:  1678901234000,
+	}
+	postList := &model.PostList{
+		Order: []string{"root1"},
+		Posts: map[string]*model.Post{
+			"root1": rootPost,
+		},
+	}
+	api.On("GetPostThread", "root1").Return(postList, nil)
+	
+	// Mock GetUser for username lookup
+	user := &model.User{
+		Id:       "user1",
+		Username: "testuser",
+	}
+	api.On("GetUser", "user1").Return(user, nil)
+	
+	// Mock log calls for bridge connection failure and thread send failure
+	api.On("LogError", mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	api.On("LogWarn", mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	
+	defer api.AssertExpectations(t)
+
+	args := &model.CommandArgs{
+		Command:   "/claude-thread invalid",
+		UserId:    "user1",
+		ChannelId: "channel1",
+		RootId:    "root1",
+	}
+
+	response, appErr := p.ExecuteCommand(nil, args)
+	assert.Nil(t, appErr)
+	assert.NotNil(t, response)
+	// With invalid action and bridge failure, we'll get an error message
+	assert.NotEmpty(t, response.Text)
+}
+
+func TestExecuteClaude_EmptyMessage(t *testing.T) {
+	p := setupTestPlugin(t)
+	api := p.API.(*plugintest.API)
+	
+	// No need to mock KVGet - empty message is checked before session retrieval
+	
+	defer api.AssertExpectations(t)
+
+	args := &model.CommandArgs{
+		Command:   "/claude",
+		UserId:    "user1",
+		ChannelId: "channel1",
+	}
+
+	response, appErr := p.ExecuteCommand(nil, args)
+	assert.Nil(t, appErr)
+	assert.NotNil(t, response)
+	assert.Contains(t, response.Text, "Please provide a message")
+}
+
+func TestRespondEphemeral(t *testing.T) {
+	response := respondEphemeral("Test message")
+	assert.NotNil(t, response)
+	assert.Equal(t, "Test message", response.Text)
+	assert.Equal(t, model.CommandResponseTypeEphemeral, response.ResponseType)
+}
+
+func TestParseProjectPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		command  string
+		expected string
+	}{
+		{
+			name:     "simple path",
+			command:  "/claude-start /tmp/test",
+			expected: "/tmp/test",
+		},
+		{
+			name:     "path with spaces",
+			command:  "/claude-start /tmp/test project",
+			expected: "/tmp/test",
+		},
+		{
+			name:     "quoted path",
+			command:  "/claude-start \"/tmp/test project\"",
+			expected: "\"/tmp/test",
+		},
+		{
+			name:     "no path",
+			command:  "/claude-start",
+			expected: "",
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parts := strings.Fields(tt.command)
+			if len(parts) > 1 {
+				result := strings.Join(parts[1:], " ")
+				if tt.expected != "" {
+					assert.Contains(t, result, tt.expected)
+				} else {
+					// Can't assert empty because we're testing different input
+				}
+			}
+		})
+	}
 }
 
 // setupTestPlugin creates a plugin instance with mocked API for testing

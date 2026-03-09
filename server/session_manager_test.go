@@ -143,3 +143,13 @@ func TestGetSessionForChannel_ExistingSession(t *testing.T) {
 	sessionID := p.GetSessionForChannel("channel1")
 	assert.Equal(t, "session123", sessionID)
 }
+
+func TestSessionManager_CreateSession_SkippedForNow(t *testing.T) {
+	// Skipped: CreateSession and StopSession tests require interface refactoring
+	// Plugin.bridgeClient needs to be an interface to allow mocking
+	t.Skip("Requires refactoring Plugin.bridgeClient to use an interface")
+}
+
+// CreateSession and StopSession tests skipped - require interface refactoring
+// These functions call bridgeClient methods which cannot be easily mocked without
+// refactoring Plugin.bridgeClient to use an interface instead of a concrete type
