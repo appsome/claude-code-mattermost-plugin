@@ -20,6 +20,7 @@ import sessionsRouter from './api/sessions.js';
 import messagesRouter from './api/messages.js';
 import filesRouter from './api/files.js';
 import gitRouter from './api/git.js';
+import contextRouter from './api/context.js';
 
 // Initialize Express app
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api/sessions', sessionsRouter);
 app.use('/api/sessions', messagesRouter);
 app.use('/api/sessions', filesRouter);
 app.use('/api/sessions', gitRouter);
+app.use('/api/sessions', contextRouter);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

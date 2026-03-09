@@ -13,6 +13,7 @@ const (
 	commandTriggerClaudeStart  = "claude-start"
 	commandTriggerClaudeStop   = "claude-stop"
 	commandTriggerClaudeStatus = "claude-status"
+	commandTriggerClaudeThread = "claude-thread"
 	commandTriggerClaudeHelp   = "claude-help"
 )
 
@@ -63,6 +64,18 @@ func (p *Plugin) registerCommands() error {
 		return err
 	}
 
+	// Register /claude-thread command
+	if err := p.API.RegisterCommand(&model.Command{
+		Trigger:          commandTriggerClaudeThread,
+		AutoComplete:     true,
+		AutoCompleteDesc: "Add thread context to Claude session",
+		AutoCompleteHint: "[action]",
+		DisplayName:      "Claude Thread Context",
+		Description:      "Add conversation history from this thread to Claude's context",
+	}); err != nil {
+		return err
+	}
+
 	// Register /claude-help command
 	if err := p.API.RegisterCommand(&model.Command{
 		Trigger:          commandTriggerClaudeHelp,
@@ -96,6 +109,8 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 		return p.executeClaudeStop(args), nil
 	case commandTriggerClaudeStatus:
 		return p.executeClaudeStatus(args), nil
+	case commandTriggerClaudeThread:
+		return p.executeClaudeThread(args, commandArgs), nil
 	case commandTriggerClaudeHelp:
 		return p.executeClaudeHelp(args), nil
 	default:
@@ -255,6 +270,72 @@ func (p *Plugin) executeClaudeStatus(args *model.CommandArgs) *model.CommandResp
 	return respondEphemeral(statusMsg)
 }
 
+// executeClaudeThread handles the /claude-thread [action] command
+func (p *Plugin) executeClaudeThread(args *model.CommandArgs, action string) *model.CommandResponse {
+	// Check if in a thread
+	if args.RootId == "" {
+		return respondEphemeral("⚠️ This command must be run in a thread. Reply to a message first.")
+	}
+
+	// Get active session
+	session, err := p.GetActiveSession(args.ChannelId)
+	if err != nil {
+		p.API.LogError("Failed to get active session", "error", err.Error())
+		return respondEphemeral("❌ Error retrieving session. Please try again.")
+	}
+
+	if session == nil {
+		return respondEphemeral("No active Claude session. Start one with `/claude-start [project-path]` first.")
+	}
+
+	// Get thread context
+	maxMessages := defaultMaxThreadMessages
+	// TODO: Add configuration option for max messages
+
+	threadContext, err := p.GetThreadContext(args.RootId, args.ChannelId, maxMessages)
+	if err != nil {
+		p.API.LogError("Failed to get thread context", "error", err.Error())
+		return respondEphemeral(fmt.Sprintf("❌ Failed to retrieve thread context: %s", err.Error()))
+	}
+
+	// Check for privacy concerns (many participants)
+	if len(threadContext.Participants) > 5 {
+		warningMsg := fmt.Sprintf("⚠️ This thread has %d participants. Context includes messages from:\n%s\n\nAre you sure you want to share this with Claude?",
+			len(threadContext.Participants),
+			strings.Join(threadContext.Participants, ", "))
+		
+		// For now, just warn. In the future, could add confirmation dialog
+		p.API.LogWarn("Thread context includes many participants", 
+			"count", len(threadContext.Participants),
+			"participants", threadContext.Participants)
+		
+		// Could return warning here, but for MVP let's proceed
+		_ = warningMsg
+	}
+
+	// Send context to bridge server
+	if err := p.SendThreadContext(session.SessionID, threadContext, action); err != nil {
+		p.API.LogError("Failed to send thread context to bridge", "error", err.Error())
+		return respondEphemeral(fmt.Sprintf("❌ Failed to send context: %s", err.Error()))
+	}
+
+	// Update last message timestamp
+	if err := p.UpdateSessionLastMessage(args.ChannelId); err != nil {
+		p.API.LogWarn("Failed to update last message timestamp", "error", err.Error())
+	}
+
+	// Build success message
+	successMsg := fmt.Sprintf("✅ Added %d messages from this thread to Claude's context.", threadContext.MessageCount)
+	if action != "" {
+		successMsg += fmt.Sprintf("\nClaude will now: **%s**", action)
+	}
+	
+	// Post confirmation from bot
+	p.postBotMessage(args.ChannelId, successMsg)
+
+	return &model.CommandResponse{}
+}
+
 // executeClaudeHelp handles the /claude-help command
 func (p *Plugin) executeClaudeHelp(args *model.CommandArgs) *model.CommandResponse {
 	helpText := "### Claude Code - AI Coding Assistant\n\n" +
@@ -263,6 +344,7 @@ func (p *Plugin) executeClaudeHelp(args *model.CommandArgs) *model.CommandRespon
 		"- `/claude-start [project-path]` - Start a new coding session\n" +
 		"- `/claude-stop` - Stop the current session\n" +
 		"- `/claude-status` - Show current session status\n" +
+		"- `/claude-thread [action]` - Add thread context to Claude (run in a thread)\n" +
 		"- `/claude-help` - Show this help message\n\n" +
 		"**Getting Started:**\n" +
 		"1. Start a session with `/claude-start /path/to/your/project`\n" +
@@ -273,6 +355,11 @@ func (p *Plugin) executeClaudeHelp(args *model.CommandArgs) *model.CommandRespon
 		"- `/claude add a login form with email and password`\n" +
 		"- `/claude refactor the user service to use async/await`\n" +
 		"- `/claude write unit tests for the auth module`\n\n" +
+		"**Thread Context:**\n" +
+		"- `/claude-thread` - Add thread messages to Claude's context\n" +
+		"- `/claude-thread summarize` - Add context and ask Claude to summarize\n" +
+		"- `/claude-thread implement` - Add context and ask Claude to implement\n" +
+		"- `/claude-thread review` - Add context and ask Claude to review\n\n" +
 		"**Configuration:**\n" +
 		"Go to **System Console → Plugins → Claude Code** to configure the bridge server URL and settings.\n\n" +
 		"For more information, visit: https://github.com/appsome/claude-code-mattermost-plugin"

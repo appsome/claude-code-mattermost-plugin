@@ -51,6 +51,23 @@ type SendMessageRequest struct {
 	Message string `json:"message"`
 }
 
+// ContextRequest is the request body for sending context
+type ContextRequest struct {
+	Source   string           `json:"source"`
+	ThreadID string           `json:"threadId,omitempty"`
+	Content  string           `json:"content"`
+	Action   string           `json:"action,omitempty"`
+	Metadata *ContextMetadata `json:"metadata,omitempty"`
+}
+
+// ContextMetadata contains metadata about the context source
+type ContextMetadata struct {
+	ChannelName  string   `json:"channelName,omitempty"`
+	RootPostID   string   `json:"rootPostId,omitempty"`
+	MessageCount int      `json:"messageCount,omitempty"`
+	Participants []string `json:"participants,omitempty"`
+}
+
 // NewBridgeClient creates a new bridge server HTTP client
 func NewBridgeClient(baseURL string, api plugin.API) *BridgeClient {
 	return &BridgeClient{
@@ -194,6 +211,31 @@ func (bc *BridgeClient) DeleteSession(sessionID string) error {
 	resp, err := bc.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("bridge server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// SendContext sends context (e.g., thread history) to a session
+func (bc *BridgeClient) SendContext(sessionID string, contextReq *ContextRequest) error {
+	jsonData, err := json.Marshal(contextReq)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	resp, err := bc.httpClient.Post(
+		fmt.Sprintf("%s/api/sessions/%s/context", bc.baseURL, sessionID),
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to send context: %w", err)
 	}
 	defer resp.Body.Close()
 
