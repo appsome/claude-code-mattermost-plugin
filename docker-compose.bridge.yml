@@ -1,0 +1,41 @@
+version: '3.8'
+
+# Docker Compose for running the complete bridge server with Claude Code
+# Use this for Kubernetes-style deployments where the plugin talks to the bridge
+
+services:
+  claude-code-bridge:
+    build:
+      context: ./bridge-server
+      dockerfile: Dockerfile.complete
+    image: claude-code-bridge:latest
+    container_name: claude-code-bridge
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_PATH=/data/sessions.db
+      - CLAUDE_CODE_PATH=claude
+      - HOST=0.0.0.0
+      - PORT=3002
+      - MAX_SESSIONS=100
+      - SESSION_TIMEOUT_MS=3600000
+      - LOG_LEVEL=info
+      # Required: Set your Anthropic API key
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      # Persist session database
+      - bridge-data:/data
+      # Mount project directories (adjust paths as needed)
+      - ${PROJECTS_PATH:-./projects}:/projects:rw
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  bridge-data:
+    driver: local
