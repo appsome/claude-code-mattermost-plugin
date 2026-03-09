@@ -147,17 +147,17 @@ func TestMessageStoreGetMessages(t *testing.T) {
 
 func TestMessageStoreAddMessage(t *testing.T) {
 	tests := []struct {
-		name           string
-		sessionID      string
-		role           string
-		content        string
-		existingData   []byte
-		getErr         *model.AppError
-		setErr         *model.AppError
-		wantErr        bool
-		wantMessageID  string
-		wantRole       string
-		wantContent    string
+		name          string
+		sessionID     string
+		role          string
+		content       string
+		existingData  []byte
+		getErr        *model.AppError
+		setErr        *model.AppError
+		wantErr       bool
+		wantMessageID string
+		wantRole      string
+		wantContent   string
 	}{
 		{
 			name:          "add first message",

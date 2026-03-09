@@ -374,18 +374,18 @@ func TestOutputHandlerPostBotMessage(t *testing.T) {
 	handler := NewOutputHandler(plugin)
 
 	tests := []struct {
-		name     string
-		content  string
+		name       string
+		content    string
 		shouldPost bool
 	}{
 		{
-			name:     "normal message",
-			content:  "Hello, world!",
+			name:       "normal message",
+			content:    "Hello, world!",
 			shouldPost: true,
 		},
 		{
-			name:     "empty message",
-			content:  "",
+			name:       "empty message",
+			content:    "",
 			shouldPost: false,
 		},
 	}
@@ -417,33 +417,33 @@ func TestOutputHandlerPostRawMessage(t *testing.T) {
 	handler := NewOutputHandler(plugin)
 
 	tests := []struct {
-		name     string
-		data     string
-		wantMsg  string
+		name       string
+		data       string
+		wantMsg    string
 		shouldPost bool
 	}{
 		{
-			name:     "single line text",
-			data:     "simple text",
-			wantMsg:  "simple text",
+			name:       "single line text",
+			data:       "simple text",
+			wantMsg:    "simple text",
 			shouldPost: true,
 		},
 		{
-			name:     "multi-line text",
-			data:     "line 1\nline 2\nline 3",
-			wantMsg:  "```\nline 1\nline 2\nline 3\n```",
+			name:       "multi-line text",
+			data:       "line 1\nline 2\nline 3",
+			wantMsg:    "```\nline 1\nline 2\nline 3\n```",
 			shouldPost: true,
 		},
 		{
-			name:     "JSON-like text",
-			data:     `{"key": "value"}`,
-			wantMsg:  "```\n{\"key\": \"value\"}\n```",
+			name:       "JSON-like text",
+			data:       `{"key": "value"}`,
+			wantMsg:    "```\n{\"key\": \"value\"}\n```",
 			shouldPost: true,
 		},
 		{
-			name:     "empty text",
-			data:     "",
-			wantMsg:  "",
+			name:       "empty text",
+			data:       "",
+			wantMsg:    "",
 			shouldPost: false,
 		},
 	}
