@@ -335,8 +335,8 @@ func (bc *BridgeClient) ModifyChange(sessionID, changeID, instructions string) e
 	return nil
 }
 
-// GetFileContent retrieves the full content of a file from the session's project
-func (bc *BridgeClient) GetFileContent(sessionID, filename string) (string, error) {
+// GetFileContentByName retrieves the full content of a file from the session's project by filename
+func (bc *BridgeClient) GetFileContentByName(sessionID, filename string) (string, error) {
 	reqBody := map[string]string{
 		"filename": filename,
 	}
@@ -369,4 +369,141 @@ func (bc *BridgeClient) GetFileContent(sessionID, filename string) (string, erro
 	}
 
 	return result.Content, nil
+}
+
+// ListFiles retrieves the file tree for a session
+func (bc *BridgeClient) ListFiles(sessionID string) ([]FileNode, error) {
+	resp, err := bc.httpClient.Get(fmt.Sprintf("%s/api/sessions/%s/files", bc.baseURL, sessionID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to list files: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("bridge server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Files []FileNode `json:"files"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return result.Files, nil
+}
+
+// GetFileContent retrieves the content of a file
+func (bc *BridgeClient) GetFileContent(sessionID, filePath string) (string, error) {
+	resp, err := bc.httpClient.Get(fmt.Sprintf("%s/api/sessions/%s/files/%s", bc.baseURL, sessionID, filePath))
+	if err != nil {
+		return "", fmt.Errorf("failed to get file content: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("bridge server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Path    string `json:"path"`
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return result.Content, nil
+}
+
+// CreateFile creates a new file in the project
+func (bc *BridgeClient) CreateFile(sessionID, filePath, content string) error {
+	reqBody := map[string]string{
+		"path":    filePath,
+		"content": content,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	resp, err := bc.httpClient.Post(
+		fmt.Sprintf("%s/api/sessions/%s/files", bc.baseURL, sessionID),
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("bridge server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// UpdateFile updates the content of an existing file
+func (bc *BridgeClient) UpdateFile(sessionID, filePath, content string) error {
+	reqBody := map[string]string{
+		"content": content,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequest(
+		http.MethodPut,
+		fmt.Sprintf("%s/api/sessions/%s/files/%s", bc.baseURL, sessionID, filePath),
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := bc.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to update file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("bridge server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// DeleteFile deletes a file from the project
+func (bc *BridgeClient) DeleteFile(sessionID, filePath string) error {
+	req, err := http.NewRequest(
+		http.MethodDelete,
+		fmt.Sprintf("%s/api/sessions/%s/files/%s", bc.baseURL, sessionID, filePath),
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := bc.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to delete file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("bridge server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }
