@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"sync"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -120,31 +119,6 @@ func (p *Plugin) OnDeactivate() error {
 
 	p.API.LogInfo("Claude Code plugin deactivated")
 	return nil
-}
-
-// ServeHTTP handles HTTP requests to the plugin
-func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	switch r.URL.Path {
-	case "/api/file-action":
-		p.handleFileAction(w, r)
-	case "/api/file-view":
-		p.handleFileView(w, r)
-	case "/api/file-edit":
-		p.handleFileEdit(w, r)
-	case "/api/file-delete":
-		p.handleFileDelete(w, r)
-	default:
-		w.WriteHeader(404)
-		_, _ = w.Write([]byte(`{"error": "Not found"}`))
-	}
-}
-
-// getPluginURL returns the base URL for plugin HTTP endpoints
-func (p *Plugin) getPluginURL() string {
-	siteURL := *p.API.GetConfig().ServiceSettings.SiteURL
-	return fmt.Sprintf("%s/plugins/com.appsome.claudecode", siteURL)
 }
 
 func main() {
