@@ -24,72 +24,79 @@ export PROJECTS_PATH="/path/to/your/projects"
 docker-compose -f docker-compose.bridge.yml up -d
 ```
 
-## Kubernetes
+## Kubernetes (Helm)
 
 ### Prerequisites
 
 1. A Kubernetes cluster
-2. `kubectl` configured to access your cluster
+2. Helm 3.x installed
 3. Your Anthropic API key
 
 ### Quick Start
 
-1. **Edit the secret** with your Anthropic API key:
+```bash
+# Install the chart
+helm install claude-code-bridge ./charts/claude-code-bridge \
+  --namespace claude-code \
+  --create-namespace \
+  --set anthropicApiKey="your-anthropic-api-key"
+```
 
-   ```bash
-   # Edit deploy/kubernetes/secret.yaml
-   # Replace "your-anthropic-api-key-here" with your actual key
-   ```
+### Using an Existing Secret
 
-2. **Deploy using kubectl**:
+If you prefer to manage the API key separately:
 
-   ```bash
-   kubectl apply -k deploy/kubernetes/
-   ```
+```bash
+# Create the secret first
+kubectl create namespace claude-code
+kubectl create secret generic my-anthropic-secret \
+  --namespace claude-code \
+  --from-literal=ANTHROPIC_API_KEY="your-api-key"
 
-   Or apply individually:
-
-   ```bash
-   kubectl apply -f deploy/kubernetes/namespace.yaml
-   kubectl apply -f deploy/kubernetes/secret.yaml
-   kubectl apply -f deploy/kubernetes/configmap.yaml
-   kubectl apply -f deploy/kubernetes/pvc.yaml
-   kubectl apply -f deploy/kubernetes/deployment.yaml
-   kubectl apply -f deploy/kubernetes/service.yaml
-   ```
-
-3. **Verify deployment**:
-
-   ```bash
-   kubectl -n claude-code get pods
-   kubectl -n claude-code get svc
-   ```
-
-4. **Get the service URL** (for Mattermost plugin configuration):
-
-   If Mattermost is in the same cluster:
-   ```
-   http://claude-code-bridge.claude-code.svc.cluster.local:3002
-   ```
-
-   If using an Ingress or LoadBalancer, configure accordingly.
+# Install with existing secret
+helm install claude-code-bridge ./charts/claude-code-bridge \
+  --namespace claude-code \
+  --set existingSecret.enabled=true \
+  --set existingSecret.name=my-anthropic-secret
+```
 
 ### Configuration
 
-#### Environment Variables
+See all available options:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ANTHROPIC_API_KEY` | Your Anthropic API key (required) | - |
-| `PORT` | Server port | `3002` |
-| `MAX_SESSIONS` | Maximum concurrent sessions | `100` |
-| `SESSION_TIMEOUT_MS` | Session timeout in milliseconds | `3600000` (1 hour) |
-| `LOG_LEVEL` | Logging level (debug, info, warn, error) | `info` |
+```bash
+helm show values ./charts/claude-code-bridge
+```
 
-#### Storage
+#### Common Options
 
-- **claude-code-data**: Stores the SQLite session database
-- **claude-code-projects**: Mount point for project files that Claude Code will work on
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `anthropicApiKey` | Your Anthropic API key | `""` |
+| `existingSecret.enabled` | Use existing secret | `false` |
+| `existingSecret.name` | Name of existing secret | `""` |
+| `image.repository` | Docker image repository | `ghcr.io/appsome/claude-code-bridge` |
+| `image.tag` | Docker image tag | `appVersion` |
+| `config.maxSessions` | Maximum concurrent sessions | `100` |
+| `config.sessionTimeoutMs` | Session timeout in ms | `3600000` |
+| `config.logLevel` | Log level | `info` |
+| `persistence.data.size` | Data volume size | `1Gi` |
+| `persistence.projects.size` | Projects volume size | `10Gi` |
+| `ingress.enabled` | Enable ingress | `false` |
+
+### Upgrade
+
+```bash
+helm upgrade claude-code-bridge ./charts/claude-code-bridge \
+  --namespace claude-code \
+  --reuse-values
+```
+
+### Uninstall
+
+```bash
+helm uninstall claude-code-bridge --namespace claude-code
+```
 
 ### Mattermost Plugin Configuration
 

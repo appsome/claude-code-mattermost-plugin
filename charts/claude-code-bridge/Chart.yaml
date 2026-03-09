@@ -1,0 +1,21 @@
+apiVersion: v2
+name: claude-code-bridge
+description: A Helm chart for deploying the Claude Code Bridge Server for Mattermost
+
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - claude
+  - mattermost
+  - ai
+  - bridge
+
+home: https://github.com/appsome/claude-code-mattermost-plugin
+sources:
+  - https://github.com/appsome/claude-code-mattermost-plugin
+
+maintainers:
+  - name: appsome
+    url: https://github.com/appsome

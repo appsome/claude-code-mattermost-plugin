@@ -1,0 +1,4 @@
+{{/*
+ConfigMap is optional - all config is passed via env vars in deployment.
+This file is kept for potential future use or custom configurations.
+*/}}
