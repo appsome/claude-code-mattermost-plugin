@@ -2,194 +2,394 @@
 
 ## Prerequisites
 
-- Mattermost Server 9.0+
-- Claude Code CLI installed on the bridge server
-- Node.js 22+ (for bridge server)
-- Go 1.21+ (for building from source)
+Before installing the Claude Code Mattermost Plugin, ensure you have:
 
-## Method 1: Mattermost Marketplace (Recommended)
+- **Mattermost Server** 9.0 or higher
+- **System Admin** access to Mattermost
+- **Claude Code CLI** installed on the bridge server machine
+- **Node.js** 22+ (for bridge server)
+- **Bridge Server** running (or ability to run it)
+
+## Installation Methods
+
+### Method 1: Via Mattermost Marketplace (Recommended)
+
+> **Note:** Marketplace listing pending approval. Manual installation required currently.
 
 1. Log in to Mattermost as System Admin
 2. Go to **System Console** → **Plugins** → **Marketplace**
 3. Search for "Claude Code"
 4. Click **Install**
-5. Configure settings (see [Configuration](#configuration) section)
-6. Enable the plugin
+5. Enable the plugin
+6. Configure settings (see Configuration section below)
 
-## Method 2: Manual Installation
+### Method 2: Manual Installation from Release
 
-### Download Latest Release
+#### Step 1: Download Plugin
+
+Download the latest release for your platform:
 
 ```bash
 # For Linux
-wget https://github.com/appsome/claude-code-mattermost-plugin/releases/latest/download/co.appsome.claudecode-linux-amd64.tar.gz
+wget https://github.com/appsome/claude-code-mattermost-plugin/releases/latest/download/com.appsome.claudecode-linux-amd64.tar.gz
 
 # For macOS
-wget https://github.com/appsome/claude-code-mattermost-plugin/releases/latest/download/co.appsome.claudecode-darwin-amd64.tar.gz
+wget https://github.com/appsome/claude-code-mattermost-plugin/releases/latest/download/com.appsome.claudecode-darwin-amd64.tar.gz
 
 # For Windows
-wget https://github.com/appsome/claude-code-mattermost-plugin/releases/latest/download/co.appsome.claudecode-windows-amd64.tar.gz
+wget https://github.com/appsome/claude-code-mattermost-plugin/releases/latest/download/com.appsome.claudecode-windows-amd64.tar.gz
 ```
 
-### Upload Plugin
+#### Step 2: Install Plugin in Mattermost
 
-1. Go to **System Console** → **Plugins** → **Management**
-2. Click **Upload Plugin**
-3. Select the downloaded `.tar.gz` file
-4. Click **Upload**
-5. Enable the plugin
+**Via System Console (Recommended):**
 
-### Configuration
+1. Log in to Mattermost as System Admin
+2. Go to **System Console** → **Plugins** → **Management**
+3. Click **Upload Plugin**
+4. Select the downloaded `.tar.gz` file
+5. Click **Upload**
+6. Enable the plugin
+
+**Via CLI:**
+
+```bash
+# On Mattermost server
+sudo -u mattermost mattermost plugin add /path/to/com.appsome.claudecode.tar.gz
+sudo -u mattermost mattermost plugin enable com.appsome.claudecode
+```
+
+#### Step 3: Configure Plugin
 
 1. Go to **System Console** → **Plugins** → **Claude Code**
 2. Configure the following settings:
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| Bridge Server URL | URL of the Claude Code bridge server | `http://localhost:3002` |
-| Claude Code CLI Path | Path to the Claude Code CLI executable | `/usr/local/bin/claude` |
-| Enable File Operations | Allow users to browse and edit files via dialogs | `true` |
-
+   - **Bridge Server URL**: `http://localhost:3002` (or your bridge server URL)
+   - **Claude Code CLI Path**: `/usr/local/bin/claude-code` (or your CLI path)
+   - **API Token**: Generate a secure token for authentication
 3. Click **Save**
 
 ## Bridge Server Setup
 
-The bridge server manages Claude Code CLI sessions and is required for the plugin to function.
+The bridge server manages Claude Code CLI sessions and must be running for the plugin to work.
 
-### Option 1: Docker (Recommended)
-
-```bash
-# Clone the repository
-git clone https://github.com/appsome/claude-code-mattermost-plugin
-cd claude-code-mattermost-plugin
-
-# Start the bridge server
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-The bridge server will be available at `http://localhost:3002`.
-
-### Option 2: Manual Setup
+### Option 1: Run with Node.js (Development/Single User)
 
 ```bash
-# Clone the repository
-git clone https://github.com/appsome/claude-code-mattermost-plugin
+# Clone repository
+git clone https://github.com/appsome/claude-code-mattermost-plugin.git
 cd claude-code-mattermost-plugin/bridge-server
 
 # Install dependencies
 npm install
 
-# Build the server
+# Build
 npm run build
 
-# Start the server
+# Start server
 npm start
 ```
 
-### Option 3: Using PM2 (Process Manager)
+The bridge server will start on `http://localhost:3002` by default.
+
+### Option 2: Run with Docker (Production)
 
 ```bash
-# Install PM2 globally
-npm install -g pm2
+# Clone repository
+git clone https://github.com/appsome/claude-code-mattermost-plugin.git
+cd claude-code-mattermost-plugin
 
-# Start the bridge server
-cd bridge-server
-npm run build
-pm2 start dist/index.js --name claude-code-bridge
-
-# Enable startup script
-pm2 startup
-pm2 save
+# Build and start
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
-### Environment Variables
+### Option 3: Run with systemd (Production)
 
-Configure the bridge server using environment variables:
+Create a systemd service file:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `HOST` | Server bind address | `127.0.0.1` |
-| `PORT` | Server port | `3002` |
-| `DATABASE_PATH` | SQLite database path | `./data/sessions.db` |
-| `CLAUDE_CODE_PATH` | Path to Claude Code CLI | `/usr/local/bin/claude` |
-| `MAX_SESSIONS` | Maximum concurrent sessions | `100` |
-| `SESSION_TIMEOUT_MS` | Session timeout in milliseconds | `3600000` (1 hour) |
-| `LOG_LEVEL` | Logging level (debug, info, warn, error) | `info` |
+```bash
+sudo nano /etc/systemd/system/claude-code-bridge.service
+```
+
+Add the following content:
+
+```ini
+[Unit]
+Description=Claude Code Bridge Server
+After=network.target
+
+[Service]
+Type=simple
+User=mattermost
+WorkingDirectory=/opt/claude-code-bridge
+ExecStart=/usr/bin/node /opt/claude-code-bridge/dist/index.js
+Restart=always
+Environment=NODE_ENV=production
+Environment=PORT=3002
+Environment=CLAUDE_CODE_PATH=/usr/local/bin/claude-code
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start the service:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable claude-code-bridge
+sudo systemctl start claude-code-bridge
+sudo systemctl status claude-code-bridge
+```
+
+### Bridge Server Configuration
+
+Create a `.env` file in the bridge-server directory:
+
+```bash
+# Server Configuration
+PORT=3002
+NODE_ENV=production
+
+# Database
+DATABASE_PATH=/var/lib/claude-code-bridge/sessions.db
+
+# Claude Code CLI
+CLAUDE_CODE_PATH=/usr/local/bin/claude-code
+
+# Security
+API_TOKEN=your-secure-token-here
+
+# Logging
+LOG_LEVEL=info
+```
+
+## Claude Code CLI Installation
+
+The Claude Code CLI must be installed on the bridge server machine.
+
+### Installation
+
+```bash
+# Install globally via npm
+npm install -g claude-code
+
+# Verify installation
+claude-code --version
+```
+
+### Configuration
+
+Claude Code CLI requires API credentials. Set them up:
+
+```bash
+# Configure Claude API key
+claude-code config set apiKey YOUR_ANTHROPIC_API_KEY
+```
+
+See [Claude Code documentation](https://github.com/siteboon/claudecode) for more details.
 
 ## Verification
 
-1. Open any Mattermost channel
-2. Type `/claude help`
-3. You should see the help message with available commands
+### 1. Check Plugin Status
 
-### Available Commands
+In Mattermost:
+1. Go to **System Console** → **Plugins** → **Management**
+2. Verify "Claude Code" shows as **Enabled**
+3. Check for any error messages
 
-- `/claude <message>` - Send a message to Claude Code
-- `/claude start` - Start a new Claude Code session
-- `/claude stop` - Stop the current session
-- `/claude status` - Check session status
-- `/claude help` - Show help message
+### 2. Test Bridge Server
+
+```bash
+curl http://localhost:3002/health
+```
+
+Expected response:
+```json
+{
+  "status": "ok",
+  "version": "1.0.0",
+  "uptime": 123,
+  "sessions": 0,
+  "timestamp": "2024-03-09T12:00:00Z"
+}
+```
+
+### 3. Test Slash Command
+
+In any Mattermost channel:
+1. Type `/claude-help`
+2. You should see a help message from the bot
+3. If it works, the plugin is properly configured!
+
+### 4. Start a Session
+
+```
+/claude-start /path/to/your/project
+```
+
+You should see a confirmation message from the bot.
 
 ## Troubleshooting
 
-### Plugin fails to connect to bridge server
+### Plugin Not Loading
 
-1. Verify the bridge server is running:
-   ```bash
-   curl http://localhost:3002/health
-   ```
-2. Check the bridge server URL in plugin settings
-3. Ensure there are no firewall rules blocking the connection
+**Symptoms:** Plugin shows as disabled or doesn't appear in plugin list.
 
-### Claude Code CLI not found
+**Solutions:**
+- Check Mattermost logs: `docker logs mattermost` or `/var/log/mattermost/mattermost.log`
+- Verify plugin file was uploaded correctly
+- Ensure Mattermost version is 9.0+
+- Check plugin manifest is valid: `tar -tzf plugin.tar.gz | head`
 
-1. Verify Claude Code is installed:
-   ```bash
-   which claude
-   claude --version
-   ```
-2. Update the CLI path in plugin settings or bridge server environment
+### Bridge Server Connection Failed
 
-### Sessions not persisting
+**Symptoms:** Commands fail with "Bridge server unavailable" error.
 
-1. Check the database path is writable
-2. For Docker, ensure the volume is mounted correctly
+**Solutions:**
+- Verify bridge server is running: `curl http://localhost:3002/health`
+- Check bridge server logs
+- Verify plugin configuration has correct bridge URL
+- Check firewall rules (port 3002 must be accessible)
+- For remote bridge server, use full URL: `http://bridge.example.com:3002`
 
-## Updating
+### Commands Not Responding
 
-### Plugin Update
+**Symptoms:** Slash commands don't trigger any response.
 
-1. Download the latest release
-2. Go to **System Console** → **Plugins** → **Management**
-3. Upload the new version
-4. The plugin will be automatically updated
+**Solutions:**
+- Check bot user was created (should happen automatically)
+- Verify you have permission to use slash commands in the channel
+- Check Mattermost logs for command registration errors
+- Try `/claude-help` first to test basic functionality
 
-### Bridge Server Update
+### Claude Code CLI Not Found
 
-Using the update script:
+**Symptoms:** "Claude Code CLI not found" error from bridge server.
 
-```bash
-./scripts/update-bridge.sh
-```
+**Solutions:**
+- Verify CLI is installed: `which claude-code`
+- Update plugin configuration with correct CLI path
+- For systemd service, update `CLAUDE_CODE_PATH` environment variable
+- Check CLI has execute permissions: `chmod +x /path/to/claude-code`
 
-Or manually:
+### Session Won't Start
 
-```bash
-cd bridge-server
-git pull origin main
-npm install
-npm run build
-# Restart the server (method depends on how you're running it)
-```
+**Symptoms:** `/claude-start` fails with error.
+
+**Solutions:**
+- Verify project path exists and is accessible
+- Check user running bridge server has read/write permissions on project
+- Ensure Claude Code CLI is properly configured with API key
+- Check bridge server logs for detailed error messages
+
+### WebSocket Connection Issues
+
+**Symptoms:** Messages don't stream in real-time.
+
+**Solutions:**
+- Check WebSocket port (3002 by default) is not blocked
+- Verify no proxy is interfering with WebSocket connections
+- Check browser console for WebSocket errors (if using webapp components)
+- Restart bridge server and plugin
 
 ## Security Considerations
 
-- The bridge server should only be accessible from the Mattermost server
-- Consider using HTTPS for production deployments
-- Review and restrict Claude Code CLI permissions as needed
-- The plugin respects Mattermost channel permissions
+### Production Deployment
 
-## Support
+For production use:
 
-- [GitHub Issues](https://github.com/appsome/claude-code-mattermost-plugin/issues)
-- [Documentation](https://github.com/appsome/claude-code-mattermost-plugin)
+1. **Use HTTPS:** Configure Mattermost with TLS certificate
+2. **Secure Bridge Server:** Use firewall to restrict access to bridge server port
+3. **Authentication:** Use strong API token for bridge server authentication
+4. **File Permissions:** Restrict project directories to necessary users only
+5. **Regular Updates:** Keep plugin, bridge server, and CLI updated
+
+### Network Configuration
+
+**Internal Network (Recommended):**
+```
+[Mattermost] --internal--> [Bridge Server] --local--> [Claude Code CLI]
+```
+
+**Firewall Rules:**
+```bash
+# Allow Mattermost server to reach bridge server
+sudo ufw allow from MATTERMOST_IP to any port 3002
+
+# Block external access to bridge server
+sudo ufw deny 3002
+```
+
+## Upgrading
+
+### Plugin Upgrade
+
+1. Download new version
+2. Upload via System Console (same as installation)
+3. Mattermost will handle the upgrade
+4. Restart Mattermost if needed
+
+### Bridge Server Upgrade
+
+```bash
+cd claude-code-mattermost-plugin/bridge-server
+git pull origin main
+npm install
+npm run build
+sudo systemctl restart claude-code-bridge
+```
+
+### CLI Upgrade
+
+```bash
+npm update -g claude-code
+```
+
+## Uninstallation
+
+### Remove Plugin
+
+1. **System Console** → **Plugins** → **Management**
+2. Find "Claude Code" plugin
+3. Click **Remove**
+4. Confirm removal
+
+### Stop Bridge Server
+
+**systemd:**
+```bash
+sudo systemctl stop claude-code-bridge
+sudo systemctl disable claude-code-bridge
+sudo rm /etc/systemd/system/claude-code-bridge.service
+```
+
+**Docker:**
+```bash
+docker-compose -f docker-compose.prod.yml down
+```
+
+### Cleanup Data
+
+```bash
+# Remove plugin data from Mattermost
+# (Located in Mattermost data directory, varies by installation)
+
+# Remove bridge server data
+rm -rf /var/lib/claude-code-bridge
+
+# Remove CLI configuration (optional)
+rm -rf ~/.config/claude-code
+```
+
+## Getting Help
+
+- **GitHub Issues:** https://github.com/appsome/claude-code-mattermost-plugin/issues
+- **Documentation:** https://github.com/appsome/claude-code-mattermost-plugin
+- **Mattermost Community:** https://community.mattermost.com
+
+## Next Steps
+
+After installation:
+
+1. Read the [User Guide](USER_GUIDE.md) to learn how to use the plugin
+2. Check [Architecture](ARCHITECTURE.md) to understand how it works
+3. For development, see [Development Guide](DEVELOPMENT.md)
