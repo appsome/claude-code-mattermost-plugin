@@ -23,8 +23,7 @@ func TestHandleModifyDialog_Success(t *testing.T) {
 
 	// Setup mock bridge server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Contains(t, r.URL.Path, "/sessions/")
-		assert.Contains(t, r.URL.Path, "/changes/")
+		assert.Contains(t, r.URL.Path, "/api/sessions/")
 		assert.Contains(t, r.URL.Path, "/modify")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]interface{}{})

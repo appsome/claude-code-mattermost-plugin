@@ -104,17 +104,20 @@ func TestSetConfiguration_SamePointer(t *testing.T) {
 	})
 }
 
-func TestSetConfiguration_EmptyConfig(t *testing.T) {
-	emptyConfig := &configuration{}
-
+func TestSetConfiguration_Nil(t *testing.T) {
 	p := &Plugin{
-		configuration: emptyConfig,
+		configuration: nil,
 	}
 
-	// Should not panic for empty config (Go optimization)
+	newConfig := &configuration{
+		BridgeServerURL: "http://localhost:3001",
+	}
+
+	// Should not panic when setting nil to a new config
 	assert.NotPanics(t, func() {
-		p.setConfiguration(emptyConfig)
+		p.setConfiguration(newConfig)
 	})
+	assert.Equal(t, newConfig, p.configuration)
 }
 
 func TestOnConfigurationChange_Success(t *testing.T) {
