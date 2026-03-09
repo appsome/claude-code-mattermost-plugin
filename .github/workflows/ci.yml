@@ -123,4 +123,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: plugin-bundle
-          path: dist/com.appsome.claudecode.tar.gz
+          path: dist/co.appsome.claudecode.tar.gz

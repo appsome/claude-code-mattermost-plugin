@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -20,6 +21,18 @@ type ThreadContext struct {
 	Participants []string
 	ChannelName  string
 	RootPostID   string
+}
+
+// ContextMessage is the JSON structure sent to the CLI
+type ContextMessage struct {
+	Type         string   `json:"type"`
+	Source       string   `json:"source"`
+	ThreadID     string   `json:"thread_id"`
+	Content      string   `json:"content"`
+	Action       string   `json:"action,omitempty"`
+	ChannelName  string   `json:"channel_name"`
+	MessageCount int      `json:"message_count"`
+	Participants []string `json:"participants"`
 }
 
 // GetThreadContext retrieves and formats all messages from a thread
@@ -105,18 +118,26 @@ func (p *Plugin) GetThreadContext(rootPostID, channelID string, maxMessages int)
 	}, nil
 }
 
-// SendThreadContext sends thread context to bridge server
+// SendThreadContext sends thread context to the CLI process
 func (p *Plugin) SendThreadContext(sessionID string, context *ThreadContext, action string) error {
-	return p.bridgeClient.SendContext(sessionID, &ContextRequest{
-		Source:   "mattermost-thread",
-		ThreadID: context.RootPostID,
-		Content:  context.Content,
-		Action:   action,
-		Metadata: &ContextMetadata{
-			ChannelName:  context.ChannelName,
-			RootPostID:   context.RootPostID,
-			MessageCount: context.MessageCount,
-			Participants: context.Participants,
-		},
-	})
+	// Build context message
+	contextMsg := ContextMessage{
+		Type:         "context",
+		Source:       "mattermost-thread",
+		ThreadID:     context.RootPostID,
+		Content:      context.Content,
+		Action:       action,
+		ChannelName:  context.ChannelName,
+		MessageCount: context.MessageCount,
+		Participants: context.Participants,
+	}
+
+	// Marshal to JSON
+	jsonBytes, err := json.Marshal(contextMsg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal context: %w", err)
+	}
+
+	// Send to CLI process
+	return p.processManager.SendInput(sessionID, string(jsonBytes))
 }

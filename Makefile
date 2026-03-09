@@ -51,16 +51,16 @@ bundle: check-go-version check-node-version
 	@cp plugin.json dist/bundle-tmp/
 	@cp server/dist/plugin-linux-amd64 dist/bundle-tmp/server/dist/
 	@cp -r webapp/dist/* dist/bundle-tmp/webapp/dist/
-	cd dist/bundle-tmp && tar -czf ../com.appsome.claudecode.tar.gz .
+	cd dist/bundle-tmp && tar -czf ../co.appsome.claudecode.tar.gz .
 	@rm -rf dist/bundle-tmp
 
 # Create all platform bundles
 bundle-all: build-all
 	@echo "Creating platform-specific bundles..."
 	@mkdir -p dist
-	tar -czf dist/com.appsome.claudecode-linux-amd64.tar.gz plugin.json server/dist/plugin-linux-amd64 webapp/dist
-	tar -czf dist/com.appsome.claudecode-darwin-amd64.tar.gz plugin.json server/dist/plugin-darwin-amd64 webapp/dist
-	tar -czf dist/com.appsome.claudecode-windows-amd64.tar.gz plugin.json server/dist/plugin-windows-amd64.exe webapp/dist
+	tar -czf dist/co.appsome.claudecode-linux-amd64.tar.gz plugin.json server/dist/plugin-linux-amd64 webapp/dist
+	tar -czf dist/co.appsome.claudecode-darwin-amd64.tar.gz plugin.json server/dist/plugin-darwin-amd64 webapp/dist
+	tar -czf dist/co.appsome.claudecode-windows-amd64.tar.gz plugin.json server/dist/plugin-windows-amd64.exe webapp/dist
 
 # Start development environment
 dev:

@@ -34,9 +34,9 @@ func (p *Plugin) handleModifyDialog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send modification request to bridge
-	err := p.bridgeClient.ModifyChange(sessionID, changeID, instructions)
-	if err != nil {
+	// Send modification request to CLI process
+	modifyMsg := fmt.Sprintf("modify %s: %s", changeID, instructions)
+	if err := p.processManager.SendInput(sessionID, modifyMsg); err != nil {
 		p.writeDialogError(w, fmt.Sprintf("Failed to send modification: %s", err.Error()))
 		return
 	}
@@ -45,7 +45,7 @@ func (p *Plugin) handleModifyDialog(w http.ResponseWriter, r *http.Request) {
 	post := &model.Post{
 		ChannelId: request.ChannelId,
 		UserId:    p.botUserID,
-		Message:   fmt.Sprintf("✏️ Modification requested: %s", instructions),
+		Message:   fmt.Sprintf("Modification requested: %s", instructions),
 	}
 	p.API.CreatePost(post)
 
@@ -78,8 +78,7 @@ func (p *Plugin) handleConfirmDialog(w http.ResponseWriter, r *http.Request) {
 	// Execute the confirmed action
 	switch action {
 	case "undo":
-		err := p.bridgeClient.SendMessage(sessionID, "undo")
-		if err != nil {
+		if err := p.processManager.SendInput(sessionID, "undo"); err != nil {
 			p.writeDialogError(w, fmt.Sprintf("Failed to undo: %s", err.Error()))
 			return
 		}
@@ -87,7 +86,7 @@ func (p *Plugin) handleConfirmDialog(w http.ResponseWriter, r *http.Request) {
 		post := &model.Post{
 			ChannelId: request.ChannelId,
 			UserId:    p.botUserID,
-			Message:   "↩️ Undoing last action...",
+			Message:   "Undoing last action...",
 		}
 		p.API.CreatePost(post)
 

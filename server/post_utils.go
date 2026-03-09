@@ -254,6 +254,26 @@ func (p *Plugin) getPluginURL() string {
 		siteURL = *config.ServiceSettings.SiteURL
 	}
 	// Plugin ID from plugin.json
-	const pluginID = "com.appsome.claudecode"
+	const pluginID = "co.appsome.claudecode"
 	return fmt.Sprintf("%s/plugins/%s", siteURL, pluginID)
+}
+
+// postBotMessage posts a message from the bot user
+func (p *Plugin) postBotMessage(channelID, content string) {
+	if content == "" {
+		return
+	}
+
+	post := &model.Post{
+		ChannelId: channelID,
+		UserId:    p.botUserID,
+		Message:   content,
+	}
+
+	if _, err := p.API.CreatePost(post); err != nil {
+		p.API.LogError("Failed to post bot message",
+			"channelID", channelID,
+			"error", err.Error(),
+		)
+	}
 }

@@ -18,4 +18,4 @@ export default class Plugin {
 
 // Export the plugin class for Mattermost to use
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-(window as unknown as {registerPlugin: (id: string, plugin: Plugin) => void}).registerPlugin('com.appsome.claudecode', new Plugin());
+(window as unknown as {registerPlugin: (id: string, plugin: Plugin) => void}).registerPlugin('co.appsome.claudecode', new Plugin());

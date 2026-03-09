@@ -22,13 +22,13 @@
 
 ```bash
 # For Linux
-wget https://github.com/appsome/claude-code-mattermost-plugin/releases/latest/download/com.appsome.claudecode-linux-amd64.tar.gz
+wget https://github.com/appsome/claude-code-mattermost-plugin/releases/latest/download/co.appsome.claudecode-linux-amd64.tar.gz
 
 # For macOS
-wget https://github.com/appsome/claude-code-mattermost-plugin/releases/latest/download/com.appsome.claudecode-darwin-amd64.tar.gz
+wget https://github.com/appsome/claude-code-mattermost-plugin/releases/latest/download/co.appsome.claudecode-darwin-amd64.tar.gz
 
 # For Windows
-wget https://github.com/appsome/claude-code-mattermost-plugin/releases/latest/download/com.appsome.claudecode-windows-amd64.tar.gz
+wget https://github.com/appsome/claude-code-mattermost-plugin/releases/latest/download/co.appsome.claudecode-windows-amd64.tar.gz
 ```
 
 ### Upload Plugin

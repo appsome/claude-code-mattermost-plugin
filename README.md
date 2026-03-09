@@ -55,7 +55,7 @@ Integrate Claude Code AI assistant directly into Mattermost for AI-powered codin
 
 6. **Upload to Mattermost:**
    - Go to System Console → Plugins → Management
-   - Upload `dist/com.appsome.claudecode.tar.gz`
+   - Upload `dist/co.appsome.claudecode.tar.gz`
    - Enable the plugin
 
 ### Available Commands

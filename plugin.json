@@ -1,5 +1,5 @@
 {
-  "id": "com.appsome.claudecode",
+  "id": "co.appsome.claudecode",
   "name": "Claude Code",
   "description": "Integrate Claude Code AI assistant directly in Mattermost",
   "homepage_url": "https://github.com/appsome/claude-code-mattermost-plugin",

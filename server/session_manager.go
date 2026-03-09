@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/mattermost/mattermost/server/public/model"
 )
 
 // ChannelSession represents an active Claude Code session for a channel
@@ -11,6 +13,7 @@ type ChannelSession struct {
 	SessionID     string `json:"session_id"`
 	ProjectPath   string `json:"project_path"`
 	UserID        string `json:"user_id"`
+	ChannelID     string `json:"channel_id"`
 	CreatedAt     int64  `json:"created_at"`
 	LastMessageAt int64  `json:"last_message_at"`
 }
@@ -84,7 +87,7 @@ func (p *Plugin) UpdateSessionLastMessage(channelID string) error {
 	return p.SaveSession(channelID, session)
 }
 
-// CreateSession creates a new session and stores it
+// CreateSession creates a new session and spawns a CLI process
 func (p *Plugin) CreateSession(channelID, projectPath, userID string) (*ChannelSession, error) {
 	// Check if there's already an active session
 	existing, err := p.GetActiveSession(channelID)
@@ -96,31 +99,29 @@ func (p *Plugin) CreateSession(channelID, projectPath, userID string) (*ChannelS
 		return nil, fmt.Errorf("channel already has an active session")
 	}
 
-	// Create session via bridge server
-	bridgeSession, err := p.bridgeClient.CreateSession(projectPath, userID, channelID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create session on bridge server: %w", err)
+	// Generate a new session ID
+	sessionID := model.NewId()
+
+	// Spawn CLI process
+	if err := p.processManager.Spawn(sessionID, projectPath, channelID, userID); err != nil {
+		return nil, fmt.Errorf("failed to spawn CLI process: %w", err)
 	}
 
 	// Store session locally
 	now := time.Now().Unix()
 	session := &ChannelSession{
-		SessionID:     bridgeSession.ID,
+		SessionID:     sessionID,
 		ProjectPath:   projectPath,
 		UserID:        userID,
+		ChannelID:     channelID,
 		CreatedAt:     now,
 		LastMessageAt: now,
 	}
 
 	if err := p.SaveSession(channelID, session); err != nil {
-		// Try to clean up bridge session
-		_ = p.bridgeClient.DeleteSession(bridgeSession.ID)
+		// Clean up CLI process
+		_ = p.processManager.Kill(sessionID)
 		return nil, fmt.Errorf("failed to save session: %w", err)
-	}
-
-	// Subscribe WebSocket to this session
-	if p.wsClient != nil {
-		p.wsClient.Subscribe(bridgeSession.ID, channelID)
 	}
 
 	return session, nil
@@ -137,20 +138,20 @@ func (p *Plugin) StopSession(channelID string) error {
 		return fmt.Errorf("no active session for channel")
 	}
 
-	// Unsubscribe WebSocket
-	if p.wsClient != nil {
-		p.wsClient.Unsubscribe(session.SessionID)
-	}
-
-	// Stop session on bridge server
-	if err := p.bridgeClient.DeleteSession(session.SessionID); err != nil {
-		p.API.LogWarn("Failed to delete session on bridge server", "error", err.Error())
+	// Kill the CLI process
+	if err := p.processManager.Kill(session.SessionID); err != nil {
+		p.API.LogWarn("Failed to kill CLI process", "error", err.Error())
 		// Continue with local cleanup
 	}
 
 	// Remove from local storage
 	if err := p.DeleteSession(channelID); err != nil {
 		return fmt.Errorf("failed to delete local session: %w", err)
+	}
+
+	// Clean up message history
+	if err := p.messageStore.DeleteSessionMessages(session.SessionID); err != nil {
+		p.API.LogWarn("Failed to delete message history", "error", err.Error())
 	}
 
 	return nil
@@ -163,4 +164,13 @@ func (p *Plugin) GetSessionForChannel(channelID string) string {
 		return ""
 	}
 	return session.SessionID
+}
+
+// IsSessionActive checks if a session is active and has a running process
+func (p *Plugin) IsSessionActive(channelID string) bool {
+	session, err := p.GetActiveSession(channelID)
+	if err != nil || session == nil {
+		return false
+	}
+	return p.processManager.IsRunning(session.SessionID)
 }

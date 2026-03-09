@@ -18,9 +18,20 @@ import (
 // If you add non-reference types to your configuration struct, be sure to rewrite Clone as a deep
 // copy appropriate for your types.
 type configuration struct {
-	BridgeServerURL      string
-	ClaudeCodePath       string
+	// ClaudeCodePath is the path to the Claude Code CLI binary
+	// If empty, defaults to "claude" (looks up in PATH)
+	ClaudeCodePath string
+
+	// EnableFileOperations allows Claude Code to perform file operations
 	EnableFileOperations bool
+
+	// MaxSessions is the maximum number of concurrent sessions allowed
+	// Default: 10
+	MaxSessions int
+
+	// SessionTimeoutMin is the session timeout in minutes
+	// Default: 60
+	SessionTimeoutMin int
 }
 
 // Clone shallow copies the configuration. Your implementation may require a deep copy if
@@ -38,7 +49,11 @@ func (p *Plugin) getConfiguration() *configuration {
 	defer p.configurationLock.RUnlock()
 
 	if p.configuration == nil {
-		return &configuration{}
+		return &configuration{
+			ClaudeCodePath:    "claude",
+			MaxSessions:       10,
+			SessionTimeoutMin: 60,
+		}
 	}
 
 	return p.configuration
@@ -66,6 +81,14 @@ func (p *Plugin) setConfiguration(configuration *configuration) {
 		}
 
 		panic("setConfiguration called with the existing configuration")
+	}
+
+	// Set defaults if not specified
+	if configuration.MaxSessions <= 0 {
+		configuration.MaxSessions = 10
+	}
+	if configuration.SessionTimeoutMin <= 0 {
+		configuration.SessionTimeoutMin = 60
 	}
 
 	p.configuration = configuration

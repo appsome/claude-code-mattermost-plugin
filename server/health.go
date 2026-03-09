@@ -1,91 +1,63 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
+	"os/exec"
 	"time"
 )
 
 // HealthStatus represents the health status of the plugin
 type HealthStatus struct {
-	Status          string `json:"status"`
-	BridgeConnected bool   `json:"bridge_connected"`
-	BridgeURL       string `json:"bridge_url"`
-	ActiveSessions  int    `json:"active_sessions"`
-	Timestamp       string `json:"timestamp"`
+	Status         string `json:"status"`
+	CLIAvailable   bool   `json:"cli_available"`
+	CLIPath        string `json:"cli_path"`
+	ActiveSessions int    `json:"active_sessions"`
+	Timestamp      string `json:"timestamp"`
 }
 
-// BridgeHealthResponse represents the response from the bridge server health endpoint
-type BridgeHealthResponse struct {
-	Status    string `json:"status"`
-	Version   string `json:"version"`
-	Uptime    int    `json:"uptime"`
-	Sessions  int    `json:"sessions"`
-	Timestamp string `json:"timestamp"`
-}
-
-// CheckBridgeHealth checks if the bridge server is healthy
-func (p *Plugin) CheckBridgeHealth() (*BridgeHealthResponse, error) {
+// CheckCLIAvailability checks if the Claude Code CLI is available
+func (p *Plugin) CheckCLIAvailability() (bool, string) {
 	config := p.getConfiguration()
-	if config.BridgeServerURL == "" {
-		return nil, fmt.Errorf("bridge server URL not configured")
+	cliPath := config.ClaudeCodePath
+	if cliPath == "" {
+		cliPath = "claude"
 	}
 
-	url := config.BridgeServerURL + "/health"
-
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-	}
-
-	resp, err := client.Get(url)
+	// Check if CLI exists in PATH or at specified path
+	path, err := exec.LookPath(cliPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to bridge server: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bridge server returned status %d", resp.StatusCode)
+		return false, cliPath
 	}
 
-	var health BridgeHealthResponse
-	if err := json.NewDecoder(resp.Body).Decode(&health); err != nil {
-		return nil, fmt.Errorf("failed to decode health response: %w", err)
-	}
-
-	return &health, nil
+	return true, path
 }
 
 // GetHealthStatus returns the overall health status of the plugin
 func (p *Plugin) GetHealthStatus() *HealthStatus {
-	config := p.getConfiguration()
+	cliAvailable, cliPath := p.CheckCLIAvailability()
 
 	status := &HealthStatus{
-		Status:          "ok",
-		BridgeConnected: false,
-		BridgeURL:       config.BridgeServerURL,
-		ActiveSessions:  0,
-		Timestamp:       time.Now().UTC().Format(time.RFC3339),
+		Status:         "ok",
+		CLIAvailable:   cliAvailable,
+		CLIPath:        cliPath,
+		ActiveSessions: 0,
+		Timestamp:      time.Now().UTC().Format(time.RFC3339),
 	}
 
-	// Check bridge health
-	bridgeHealth, err := p.CheckBridgeHealth()
-	if err != nil {
-		p.API.LogWarn("Bridge health check failed", "error", err.Error())
+	// Get active session count
+	if p.processManager != nil {
+		status.ActiveSessions = p.processManager.GetRunningCount()
+	}
+
+	// Set status based on CLI availability
+	if !cliAvailable {
 		status.Status = "degraded"
-	} else {
-		status.BridgeConnected = true
-		status.ActiveSessions = bridgeHealth.Sessions
 	}
 
 	return status
 }
 
-// IsBridgeHealthy returns true if the bridge server is reachable and healthy
-func (p *Plugin) IsBridgeHealthy() bool {
-	health, err := p.CheckBridgeHealth()
-	if err != nil {
-		return false
-	}
-	return health.Status == "ok"
+// IsCLIHealthy returns true if the Claude Code CLI is available
+func (p *Plugin) IsCLIHealthy() bool {
+	available, _ := p.CheckCLIAvailability()
+	return available
 }

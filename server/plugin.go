@@ -22,17 +22,18 @@ type Plugin struct {
 	// botUserID is the ID of the bot user created by the plugin
 	botUserID string
 
-	// bridgeClient is the HTTP client for the Claude Code bridge server
-	bridgeClient *BridgeClient
+	// processManager manages CLI processes
+	processManager *ProcessManager
 
-	// wsClient is the WebSocket client for real-time updates from the bridge
-	wsClient *WebSocketClient
+	// outputHandler handles CLI output routing to Mattermost
+	outputHandler *OutputHandler
+
+	// messageStore handles message persistence
+	messageStore *MessageStore
 }
 
 // OnActivate is invoked when the plugin is activated.
 func (p *Plugin) OnActivate() error {
-	config := p.getConfiguration()
-
 	// Ensure the bot user exists
 	bot := &model.Bot{
 		Username:    "claude-code",
@@ -55,24 +56,24 @@ func (p *Plugin) OnActivate() error {
 		p.API.LogInfo("Created new bot user", "user_id", createdBot.UserId)
 	}
 
-	// Initialize bridge client
-	p.bridgeClient = NewBridgeClient(config.BridgeServerURL, p.API)
+	// Initialize message store
+	p.messageStore = NewMessageStore(p.API)
 
-	// Initialize WebSocket client for real-time updates
-	p.wsClient = NewWebSocketClient(config.BridgeServerURL, p)
-	if err := p.wsClient.Connect(); err != nil {
-		p.API.LogWarn("Failed to connect to bridge WebSocket", "error", err.Error())
-		// Don't fail activation if WebSocket connection fails
-	}
+	// Initialize output handler (must be before process manager)
+	p.outputHandler = NewOutputHandler(p)
+
+	// Initialize process manager
+	p.processManager = NewProcessManager(p)
 
 	// Register slash commands
 	if err := p.registerCommands(); err != nil {
 		return fmt.Errorf("failed to register commands: %w", err)
 	}
 
+	config := p.getConfiguration()
 	p.API.LogInfo("Claude Code plugin activated successfully",
 		"bot_user_id", p.botUserID,
-		"bridge_url", config.BridgeServerURL,
+		"cli_path", config.ClaudeCodePath,
 	)
 
 	return nil
@@ -80,8 +81,9 @@ func (p *Plugin) OnActivate() error {
 
 // OnDeactivate is invoked when the plugin is deactivated.
 func (p *Plugin) OnDeactivate() error {
-	if p.wsClient != nil {
-		p.wsClient.Close()
+	// Kill all running CLI processes
+	if p.processManager != nil {
+		p.processManager.KillAll()
 	}
 
 	p.API.LogInfo("Claude Code plugin deactivated")

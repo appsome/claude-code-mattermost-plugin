@@ -39,9 +39,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/com.appsome.claudecode-linux-amd64.tar.gz
-            dist/com.appsome.claudecode-darwin-amd64.tar.gz
-            dist/com.appsome.claudecode-windows-amd64.tar.gz
+            dist/co.appsome.claudecode-linux-amd64.tar.gz
+            dist/co.appsome.claudecode-darwin-amd64.tar.gz
+            dist/co.appsome.claudecode-windows-amd64.tar.gz
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

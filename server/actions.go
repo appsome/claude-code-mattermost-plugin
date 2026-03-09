@@ -61,8 +61,9 @@ func (p *Plugin) handleApprove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := p.bridgeClient.ApproveChange(sessionID, changeID)
-	if err != nil {
+	// Send approval to CLI process
+	approveMsg := fmt.Sprintf("approve %s", changeID)
+	if err := p.processManager.SendInput(sessionID, approveMsg); err != nil {
 		p.writeError(w, err)
 		return
 	}
@@ -75,7 +76,7 @@ func (p *Plugin) handleApprove(w http.ResponseWriter, r *http.Request) {
 
 	response := &model.PostActionIntegrationResponse{
 		Update: &model.Post{
-			Message: fmt.Sprintf("✅ Changes approved by @%s", username),
+			Message: fmt.Sprintf("Changes approved by @%s", username),
 			Props: model.StringInterface{
 				"from_bot": "true",
 			},
@@ -106,8 +107,9 @@ func (p *Plugin) handleReject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := p.bridgeClient.RejectChange(sessionID, changeID)
-	if err != nil {
+	// Send rejection to CLI process
+	rejectMsg := fmt.Sprintf("reject %s", changeID)
+	if err := p.processManager.SendInput(sessionID, rejectMsg); err != nil {
 		p.writeError(w, err)
 		return
 	}
@@ -120,7 +122,7 @@ func (p *Plugin) handleReject(w http.ResponseWriter, r *http.Request) {
 
 	response := &model.PostActionIntegrationResponse{
 		Update: &model.Post{
-			Message: fmt.Sprintf("❌ Changes rejected by @%s", username),
+			Message: fmt.Sprintf("Changes rejected by @%s", username),
 		},
 	}
 
@@ -190,15 +192,14 @@ func (p *Plugin) handleContinue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := p.bridgeClient.SendMessage(sessionID, "continue")
-	if err != nil {
+	if err := p.processManager.SendInput(sessionID, "continue"); err != nil {
 		p.writeError(w, err)
 		return
 	}
 
 	response := &model.PostActionIntegrationResponse{
 		Update: &model.Post{
-			Message: "⏳ Continuing...",
+			Message: "Continuing...",
 		},
 	}
 
@@ -220,15 +221,14 @@ func (p *Plugin) handleExplain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := p.bridgeClient.SendMessage(sessionID, "explain that")
-	if err != nil {
+	if err := p.processManager.SendInput(sessionID, "explain that"); err != nil {
 		p.writeError(w, err)
 		return
 	}
 
 	response := &model.PostActionIntegrationResponse{
 		Update: &model.Post{
-			Message: "⏳ Explaining...",
+			Message: "Explaining...",
 		},
 	}
 
@@ -307,15 +307,16 @@ func (p *Plugin) handleApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := p.bridgeClient.ApproveChange(sessionID, changeID)
-	if err != nil {
+	// Send apply command to CLI process
+	applyMsg := fmt.Sprintf("apply %s", changeID)
+	if err := p.processManager.SendInput(sessionID, applyMsg); err != nil {
 		p.writeError(w, err)
 		return
 	}
 
 	response := &model.PostActionIntegrationResponse{
 		Update: &model.Post{
-			Message: "✅ Changes applied",
+			Message: "Changes applied",
 		},
 	}
 
@@ -343,15 +344,16 @@ func (p *Plugin) handleDiscard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := p.bridgeClient.RejectChange(sessionID, changeID)
-	if err != nil {
+	// Send discard command to CLI process
+	discardMsg := fmt.Sprintf("discard %s", changeID)
+	if err := p.processManager.SendInput(sessionID, discardMsg); err != nil {
 		p.writeError(w, err)
 		return
 	}
 
 	response := &model.PostActionIntegrationResponse{
 		Update: &model.Post{
-			Message: "❌ Changes discarded",
+			Message: "Changes discarded",
 		},
 	}
 
@@ -367,10 +369,14 @@ func (p *Plugin) handleView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filename, ok := request.Context["filename"].(string)
+	filePath, ok := request.Context["file_path"].(string)
 	if !ok {
-		p.writeError(w, fmt.Errorf("missing filename"))
-		return
+		// Try "filename" as fallback
+		filePath, ok = request.Context["filename"].(string)
+		if !ok {
+			p.writeError(w, fmt.Errorf("missing file_path"))
+			return
+		}
 	}
 
 	sessionID := p.GetSessionForChannel(request.ChannelId)
@@ -379,16 +385,12 @@ func (p *Plugin) handleView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content, err := p.bridgeClient.GetFileContent(sessionID, filename)
-	if err != nil {
-		p.writeError(w, err)
-		return
-	}
-
+	// For now, just post a message that file viewing is not available in embedded mode
+	// In a future version, we could read the file directly from the project path
 	ephemeral := &model.Post{
 		ChannelId: request.ChannelId,
 		UserId:    p.botUserID,
-		Message:   fmt.Sprintf("**Full content of %s:**\n```\n%s\n```", filename, content),
+		Message:   fmt.Sprintf("File: `%s`\n\nFile viewing is available in the project directory.", filePath),
 	}
 
 	p.API.SendEphemeralPost(request.UserId, ephemeral)
@@ -418,15 +420,14 @@ func (p *Plugin) handleMenu(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := p.bridgeClient.SendMessage(sessionID, selectedValue)
-	if err != nil {
+	if err := p.processManager.SendInput(sessionID, selectedValue); err != nil {
 		p.writeError(w, err)
 		return
 	}
 
 	response := &model.PostActionIntegrationResponse{
 		Update: &model.Post{
-			Message: fmt.Sprintf("⏳ Executing: %s", selectedValue),
+			Message: fmt.Sprintf("Executing: %s", selectedValue),
 		},
 	}
 

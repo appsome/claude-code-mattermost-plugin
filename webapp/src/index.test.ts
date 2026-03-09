@@ -12,7 +12,7 @@ describe('Plugin', () => {
     it('should register the plugin', async () => {
         await import('./index');
         expect(window.registerPlugin).toHaveBeenCalledWith(
-            'com.appsome.claudecode',
+            'co.appsome.claudecode',
             expect.any(Object)
         );
     });
