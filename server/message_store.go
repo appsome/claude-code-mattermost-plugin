@@ -24,9 +24,9 @@ type StoredMessage struct {
 
 // SessionMessages holds all messages for a session
 type SessionMessages struct {
-	SessionID string           `json:"session_id"`
-	Messages  []StoredMessage  `json:"messages"`
-	UpdatedAt time.Time        `json:"updated_at"`
+	SessionID string          `json:"session_id"`
+	Messages  []StoredMessage `json:"messages"`
+	UpdatedAt time.Time       `json:"updated_at"`
 }
 
 // NewMessageStore creates a new MessageStore

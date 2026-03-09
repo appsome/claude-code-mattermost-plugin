@@ -344,4 +344,3 @@ func (ws *WebSocketClient) Close() error {
 
 	return nil
 }
-
