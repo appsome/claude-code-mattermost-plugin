@@ -64,10 +64,19 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
+Check if API key is configured (either directly or via existing secret)
+*/}}
+{{- define "claude-code-bridge.apiKeyConfigured" -}}
+{{- if or .Values.anthropicApiKey .Values.existingSecret.name -}}
+true
+{{- end }}
+{{- end }}
+
+{{/*
 Get the secret name for Anthropic API key
 */}}
 {{- define "claude-code-bridge.secretName" -}}
-{{- if .Values.existingSecret.enabled }}
+{{- if .Values.existingSecret.name }}
 {{- .Values.existingSecret.name }}
 {{- else }}
 {{- include "claude-code-bridge.fullname" . }}
@@ -78,8 +87,8 @@ Get the secret name for Anthropic API key
 Get the secret key for Anthropic API key
 */}}
 {{- define "claude-code-bridge.secretKey" -}}
-{{- if .Values.existingSecret.enabled }}
-{{- .Values.existingSecret.key }}
+{{- if .Values.existingSecret.name }}
+{{- .Values.existingSecret.key | default "ANTHROPIC_API_KEY" }}
 {{- else }}
 {{- "ANTHROPIC_API_KEY" }}
 {{- end }}

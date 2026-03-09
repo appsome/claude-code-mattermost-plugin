@@ -12,17 +12,26 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-# Anthropic API key (required)
-# Set via --set anthropicApiKey=xxx or use existingSecret
+# =============================================================================
+# Anthropic API Key Configuration (one of these is required)
+# =============================================================================
+
+# Option 1: Set the API key directly (creates a new secret)
+# Use: --set anthropicApiKey="sk-ant-..."
 anthropicApiKey: ""
 
-# Use an existing secret for the API key
+# Option 2: Reference an existing Kubernetes secret
+# Use when you manage secrets externally (e.g., External Secrets, Sealed Secrets)
 existingSecret:
-  enabled: false
+  # Name of the existing secret containing the API key
   name: ""
+  # Key within the secret that contains the API key
   key: "ANTHROPIC_API_KEY"
 
-# Bridge server configuration
+# =============================================================================
+# Bridge Server Configuration
+# =============================================================================
+
 config:
   nodeEnv: "production"
   port: 3002
@@ -33,6 +42,10 @@ config:
   claudeCodePath: "claude"
   databasePath: "/data/sessions.db"
   disableNonessentialTraffic: true
+
+# =============================================================================
+# Kubernetes Resources
+# =============================================================================
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -108,7 +121,10 @@ tolerations: []
 
 affinity: {}
 
-# Persistent storage configuration
+# =============================================================================
+# Persistent Storage
+# =============================================================================
+
 persistence:
   data:
     enabled: true
