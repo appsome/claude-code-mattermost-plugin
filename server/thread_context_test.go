@@ -19,27 +19,19 @@ func TestGetThreadContext_EmptyThread(t *testing.T) {
 	}
 	api.On("GetChannel", "channel1").Return(channel, nil)
 	
-	// Mock GetPostThread to return only root post
-	rootPost := &model.Post{
-		Id:        "root123",
-		ChannelId: "channel1",
-		Message:   "Root post",
-		CreateAt:  1000000000,
-	}
-	
+	// Mock GetPostThread to return truly empty thread (no posts)
 	postList := &model.PostList{
 		Order: []string{},
-		Posts: map[string]*model.Post{
-			"root123": rootPost,
-		},
+		Posts: map[string]*model.Post{},
 	}
 	api.On("GetPostThread", "root123").Return(postList, nil)
 	
 	defer api.AssertExpectations(t)
 
 	_, err := p.GetThreadContext("root123", "channel1", 50)
-	// Should error because thread is empty (only has root post in map, but Order is empty)
+	// Should error because thread is empty
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "thread is empty")
 }
 
 func TestGetThreadContext_SinglePost(t *testing.T) {
@@ -156,11 +148,22 @@ func TestGetThreadContext_MaxMessagesLimit(t *testing.T) {
 	}
 	api.On("GetChannel", "channel1").Return(channel, nil)
 	
-	// Create 10 posts
+	// Create root post + 9 more posts (10 total)
 	posts := make(map[string]*model.Post)
 	order := make([]string, 10)
 	
-	for i := 0; i < 10; i++ {
+	// Root post
+	posts["root123"] = &model.Post{
+		Id:        "root123",
+		UserId:    "user1",
+		ChannelId: "channel1",
+		Message:   "Root message",
+		CreateAt:  1000000000,
+	}
+	order[0] = "root123"
+	
+	// Add 9 more posts
+	for i := 1; i < 10; i++ {
 		postID := model.NewId()
 		posts[postID] = &model.Post{
 			Id:        postID,
@@ -180,7 +183,9 @@ func TestGetThreadContext_MaxMessagesLimit(t *testing.T) {
 	user := &model.User{Id: "user1", Username: "testuser"}
 	
 	api.On("GetPostThread", "root123").Return(postList, nil)
-	api.On("GetUser", "user1").Return(user, nil).Times(5) // Only last 5 messages
+	// GetUser will be called once for each of the last 5 messages (all same user)
+	// But since they're all the same user, it will still be called 5 times
+	api.On("GetUser", "user1").Return(user, nil).Times(5)
 	
 	defer api.AssertExpectations(t)
 

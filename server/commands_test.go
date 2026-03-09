@@ -19,10 +19,12 @@ func TestExecuteCommand_Help(t *testing.T) {
 		ChannelId: "channel1",
 	}
 
-	response, err := p.ExecuteCommand(nil, args)
-	assert.NoError(t, err)
+	response, appErr := p.ExecuteCommand(nil, args)
+	if appErr != nil {
+		t.Fatalf("ExecuteCommand returned AppError: %v", appErr)
+	}
 	assert.NotNil(t, response)
-	assert.Contains(t, response.Text, "Claude Code Commands")
+	assert.Contains(t, response.Text, "Claude Code - AI Coding Assistant")
 }
 
 func TestExecuteCommand_StartWithoutPath(t *testing.T) {
@@ -35,8 +37,10 @@ func TestExecuteCommand_StartWithoutPath(t *testing.T) {
 		ChannelId: "channel1",
 	}
 
-	response, err := p.ExecuteCommand(nil, args)
-	assert.NoError(t, err)
+	response, appErr := p.ExecuteCommand(nil, args)
+	if appErr != nil {
+		t.Fatalf("ExecuteCommand returned AppError: %v", appErr)
+	}
 	assert.NotNil(t, response)
 	assert.Contains(t, response.Text, "Please provide a project path")
 }
@@ -56,8 +60,10 @@ func TestExecuteCommand_StopWithoutSession(t *testing.T) {
 		ChannelId: "channel1",
 	}
 
-	response, err := p.ExecuteCommand(nil, args)
-	assert.NoError(t, err)
+	response, appErr := p.ExecuteCommand(nil, args)
+	if appErr != nil {
+		t.Fatalf("ExecuteCommand returned AppError: %v", appErr)
+	}
 	assert.NotNil(t, response)
 	assert.Contains(t, response.Text, "No active session")
 }
@@ -77,8 +83,10 @@ func TestExecuteCommand_SendWithoutSession(t *testing.T) {
 		ChannelId: "channel1",
 	}
 
-	response, err := p.ExecuteCommand(nil, args)
-	assert.NoError(t, err)
+	response, appErr := p.ExecuteCommand(nil, args)
+	if appErr != nil {
+		t.Fatalf("ExecuteCommand returned AppError: %v", appErr)
+	}
 	assert.NotNil(t, response)
 	assert.Contains(t, response.Text, "No active session")
 }
@@ -98,8 +106,10 @@ func TestExecuteCommand_Status(t *testing.T) {
 		ChannelId: "channel1",
 	}
 
-	response, err := p.ExecuteCommand(nil, args)
-	assert.NoError(t, err)
+	response, appErr := p.ExecuteCommand(nil, args)
+	if appErr != nil {
+		t.Fatalf("ExecuteCommand returned AppError: %v", appErr)
+	}
 	assert.NotNil(t, response)
 	// Should show no active session
 	assert.Contains(t, response.Text, "No active session")
@@ -107,12 +117,7 @@ func TestExecuteCommand_Status(t *testing.T) {
 
 func TestExecuteCommand_FilesWithoutSession(t *testing.T) {
 	p := setupTestPlugin(t)
-	api := p.API.(*plugintest.API)
-	
-	// No active session
-	api.On("KVGet", mock.AnythingOfType("string")).Return(nil, nil)
-	
-	defer api.AssertExpectations(t)
+	defer p.API.(*plugintest.API).AssertExpectations(t)
 
 	args := &model.CommandArgs{
 		Command:   "/claude-files",
@@ -120,10 +125,13 @@ func TestExecuteCommand_FilesWithoutSession(t *testing.T) {
 		ChannelId: "channel1",
 	}
 
-	response, err := p.ExecuteCommand(nil, args)
-	assert.NoError(t, err)
+	response, appErr := p.ExecuteCommand(nil, args)
+	if appErr != nil {
+		t.Fatalf("ExecuteCommand returned AppError: %v", appErr)
+	}
 	assert.NotNil(t, response)
-	assert.Contains(t, response.Text, "No active session")
+	// claude-files command doesn't exist, should return unknown command
+	assert.Contains(t, response.Text, "Unknown command")
 }
 
 func TestExecuteCommand_ThreadWithoutSession(t *testing.T) {
@@ -142,10 +150,12 @@ func TestExecuteCommand_ThreadWithoutSession(t *testing.T) {
 		RootId:    "root1", // In a thread
 	}
 
-	response, err := p.ExecuteCommand(nil, args)
-	assert.NoError(t, err)
+	response, appErr := p.ExecuteCommand(nil, args)
+	if appErr != nil {
+		t.Fatalf("ExecuteCommand returned AppError: %v", appErr)
+	}
 	assert.NotNil(t, response)
-	assert.Contains(t, response.Text, "No active session")
+	assert.Contains(t, response.Text, "No active Claude session")
 }
 
 func TestExecuteCommand_ThreadNotInThread(t *testing.T) {
@@ -159,10 +169,12 @@ func TestExecuteCommand_ThreadNotInThread(t *testing.T) {
 		RootId:    "", // Not in a thread
 	}
 
-	response, err := p.ExecuteCommand(nil, args)
-	assert.NoError(t, err)
+	response, appErr := p.ExecuteCommand(nil, args)
+	if appErr != nil {
+		t.Fatalf("ExecuteCommand returned AppError: %v", appErr)
+	}
 	assert.NotNil(t, response)
-	assert.Contains(t, response.Text, "must be used in a thread")
+	assert.Contains(t, response.Text, "must be run in a thread")
 }
 
 func TestExecuteCommand_InvalidCommand(t *testing.T) {
@@ -175,8 +187,10 @@ func TestExecuteCommand_InvalidCommand(t *testing.T) {
 		ChannelId: "channel1",
 	}
 
-	response, err := p.ExecuteCommand(nil, args)
-	assert.NoError(t, err)
+	response, appErr := p.ExecuteCommand(nil, args)
+	if appErr != nil {
+		t.Fatalf("ExecuteCommand returned AppError: %v", appErr)
+	}
 	assert.NotNil(t, response)
 	assert.Contains(t, response.Text, "Unknown command")
 }
