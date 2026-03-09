@@ -7,6 +7,7 @@ import { spawn, ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 import { config } from './config.js';
 import { logger } from './logger.js';
+import { sessionCounter, activeSessionsGauge } from './metrics.js';
 import type { CLIProcess } from './types/index.js';
 
 export interface SpawnerEvents {
@@ -70,6 +71,8 @@ export class CLISpawner extends EventEmitter {
     child.on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
       logger.info(`[${sessionId}] Process exited with code ${code}, signal ${signal}`);
       this.processes.delete(sessionId);
+      activeSessionsGauge.set(this.processes.size);
+      sessionCounter.inc({ status: code === 0 ? 'completed' : 'failed' });
       this.emit('exit', sessionId, code);
     });
 
@@ -81,6 +84,11 @@ export class CLISpawner extends EventEmitter {
     });
 
     this.processes.set(sessionId, cliProcess);
+    
+    // Update metrics
+    sessionCounter.inc({ status: 'created' });
+    activeSessionsGauge.set(this.processes.size);
+    
     return cliProcess;
   }
 

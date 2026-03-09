@@ -1,0 +1,60 @@
+name: Claude Code
+description: Integrate Claude Code AI assistant directly in Mattermost with native slash commands, interactive components, and thread context injection
+homepage_url: https://github.com/appsome/claude-code-mattermost-plugin
+icon_path: assets/icon.png
+release_notes_url: https://github.com/appsome/claude-code-mattermost-plugin/releases
+support_url: https://github.com/appsome/claude-code-mattermost-plugin/issues
+
+maintainer_name: Appsome
+maintainer_url: https://github.com/appsome
+
+labels:
+  - ai
+  - development
+  - code
+  - automation
+  - productivity
+
+# Requirements
+min_server_version: "9.0.0"
+
+# Features
+features:
+  - Hands-free AI coding with slash commands
+  - Thread context integration - add conversation history to Claude sessions
+  - Interactive approve/reject buttons for code changes
+  - File browser and operations via dialogs
+  - Real-time streaming output via WebSocket
+  - Mobile-friendly button-based interface
+  - Dual mode - remote bridge server OR embedded CLI process
+
+# Screenshots (to be added)
+# screenshots:
+#   - path: assets/screenshot-commands.png
+#     caption: "Slash commands interface"
+#   - path: assets/screenshot-thread-context.png
+#     caption: "Thread context integration"
+#   - path: assets/screenshot-file-browser.png
+#     caption: "Interactive file browser"
+
+# Installation requirements
+installation_notes: |
+  **Prerequisites:**
+  - Claude Code CLI installed on the server or via bridge server
+  - For embedded mode: Claude Code CLI must be installed on Mattermost server
+  - For bridge mode: Separate Node.js bridge server (included in release)
+
+  **Configuration:**
+  1. Go to System Console > Plugins > Claude Code
+  2. Choose mode (embedded or bridge)
+  3. Configure Claude Code CLI path or bridge server URL
+  4. Enable the plugin
+
+  **Bridge Server (Optional for multi-user deployments):**
+  ```bash
+  docker run -d -p 3002:3002 \
+    -v $(pwd)/data:/data \
+    ghcr.io/appsome/claude-code-bridge:latest
+  ```
+
+  See full documentation: https://github.com/appsome/claude-code-mattermost-plugin/blob/main/docs/INSTALLATION.md
