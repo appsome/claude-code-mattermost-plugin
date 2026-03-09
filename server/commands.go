@@ -10,14 +10,14 @@ import (
 )
 
 const (
-	commandTriggerClaude       = "claude"
-	commandTriggerClaudeStart  = "claude-start"
-	commandTriggerClaudeStop   = "claude-stop"
-	commandTriggerClaudeStatus = "claude-status"
-	commandTriggerClaudeThread = "claude-thread"
-	commandTriggerClaudeFiles  = "claude-files"
+	commandTriggerClaude        = "claude"
+	commandTriggerClaudeStart   = "claude-start"
+	commandTriggerClaudeStop    = "claude-stop"
+	commandTriggerClaudeStatus  = "claude-status"
+	commandTriggerClaudeThread  = "claude-thread"
+	commandTriggerClaudeFiles   = "claude-files"
 	commandTriggerClaudeNewFile = "claude-new-file"
-	commandTriggerClaudeHelp   = "claude-help"
+	commandTriggerClaudeHelp    = "claude-help"
 )
 
 func (p *Plugin) registerCommands() error {

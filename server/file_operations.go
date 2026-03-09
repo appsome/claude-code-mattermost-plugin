@@ -12,11 +12,11 @@ import (
 
 // FileNode represents a file or directory in the file tree
 type FileNode struct {
-	Name     string      `json:"name"`
-	Path     string      `json:"path"`
-	Type     string      `json:"type"` // "file" or "directory"
-	Size     *int64      `json:"size,omitempty"`
-	Children []FileNode  `json:"children,omitempty"`
+	Name     string     `json:"name"`
+	Path     string     `json:"path"`
+	Type     string     `json:"type"` // "file" or "directory"
+	Size     *int64     `json:"size,omitempty"`
+	Children []FileNode `json:"children,omitempty"`
 }
 
 // FileActionType represents available file operations
@@ -111,7 +111,7 @@ func (p *Plugin) showFileBrowser(channelID, userID, sessionID string) error {
 
 	// Build file tree representation (flattened for display)
 	fileList := flattenFileTree(files, "")
-	
+
 	if len(fileList) == 0 {
 		p.postBotMessage(channelID, "📂 No files found in project")
 		return nil
@@ -119,18 +119,18 @@ func (p *Plugin) showFileBrowser(channelID, userID, sessionID string) error {
 
 	// Create interactive message with file actions
 	message := "📂 **Project Files**\n\nClick a file to view options:"
-	
+
 	var actions []*model.PostAction
 	for i, file := range fileList {
 		if i >= 20 { // Limit to 20 files to avoid overwhelming the UI
 			break
 		}
-		
+
 		icon := "📄"
 		if file.Type == "directory" {
 			icon = "📁"
 		}
-		
+
 		actions = append(actions, &model.PostAction{
 			Name: fmt.Sprintf("%s %s", icon, file.Path),
 			Integration: &model.PostActionIntegration{
@@ -173,7 +173,7 @@ func flattenFileTree(nodes []FileNode, prefix string) []FileNode {
 		if prefix != "" {
 			displayPath = filepath.Join(prefix, node.Name)
 		}
-		
+
 		flatNode := FileNode{
 			Name: node.Name,
 			Path: displayPath,
@@ -192,9 +192,9 @@ func flattenFileTree(nodes []FileNode, prefix string) []FileNode {
 // handleFileAction processes file action button clicks
 func (p *Plugin) handleFileAction(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Context map[string]interface{} `json:"context"`
-		UserID  string                 `json:"user_id"`
-		ChannelID string               `json:"channel_id"`
+		Context   map[string]interface{} `json:"context"`
+		UserID    string                 `json:"user_id"`
+		ChannelID string                 `json:"channel_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -287,9 +287,9 @@ func (p *Plugin) showFileActionMenu(channelID, sessionID, filePath string) error
 // handleFileView displays file content
 func (p *Plugin) handleFileView(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Context map[string]interface{} `json:"context"`
-		UserID  string                 `json:"user_id"`
-		ChannelID string               `json:"channel_id"`
+		Context   map[string]interface{} `json:"context"`
+		UserID    string                 `json:"user_id"`
+		ChannelID string                 `json:"channel_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -353,9 +353,9 @@ func (p *Plugin) viewFileContent(channelID, sessionID, filePath string) error {
 // handleFileEdit initiates file editing
 func (p *Plugin) handleFileEdit(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Context map[string]interface{} `json:"context"`
-		UserID  string                 `json:"user_id"`
-		ChannelID string               `json:"channel_id"`
+		Context   map[string]interface{} `json:"context"`
+		UserID    string                 `json:"user_id"`
+		ChannelID string                 `json:"channel_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -369,7 +369,7 @@ func (p *Plugin) handleFileEdit(w http.ResponseWriter, r *http.Request) {
 	// For now, tell user to edit via Claude or manually
 	// TODO: Implement interactive dialog editing in Issue #5
 	message := fmt.Sprintf("✏️ **Edit:** `%s`\n\nTo edit this file:\n1. Use `/claude` to ask Claude to make changes\n2. Or edit locally and changes will sync automatically", filePath)
-	
+
 	p.postBotMessage(request.ChannelID, message)
 	w.WriteHeader(http.StatusOK)
 }
@@ -377,9 +377,9 @@ func (p *Plugin) handleFileEdit(w http.ResponseWriter, r *http.Request) {
 // handleFileDelete processes file deletion
 func (p *Plugin) handleFileDelete(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Context map[string]interface{} `json:"context"`
-		UserID  string                 `json:"user_id"`
-		ChannelID string               `json:"channel_id"`
+		Context   map[string]interface{} `json:"context"`
+		UserID    string                 `json:"user_id"`
+		ChannelID string                 `json:"channel_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -428,32 +428,32 @@ func (p *Plugin) createFileDirectly(channelID, sessionID, filePath string) *mode
 // getLanguageFromExtension maps file extensions to syntax highlighting languages
 func getLanguageFromExtension(ext string) string {
 	langMap := map[string]string{
-		".go":   "go",
-		".js":   "javascript",
-		".ts":   "typescript",
-		".jsx":  "jsx",
-		".tsx":  "tsx",
-		".py":   "python",
-		".rb":   "ruby",
-		".java": "java",
-		".c":    "c",
-		".cpp":  "cpp",
-		".cs":   "csharp",
-		".php":  "php",
-		".rs":   "rust",
+		".go":    "go",
+		".js":    "javascript",
+		".ts":    "typescript",
+		".jsx":   "jsx",
+		".tsx":   "tsx",
+		".py":    "python",
+		".rb":    "ruby",
+		".java":  "java",
+		".c":     "c",
+		".cpp":   "cpp",
+		".cs":    "csharp",
+		".php":   "php",
+		".rs":    "rust",
 		".swift": "swift",
-		".kt":   "kotlin",
+		".kt":    "kotlin",
 		".scala": "scala",
-		".sh":   "bash",
-		".yaml": "yaml",
-		".yml":  "yaml",
-		".json": "json",
-		".xml":  "xml",
-		".html": "html",
-		".css":  "css",
-		".scss": "scss",
-		".md":   "markdown",
-		".sql":  "sql",
+		".sh":    "bash",
+		".yaml":  "yaml",
+		".yml":   "yaml",
+		".json":  "json",
+		".xml":   "xml",
+		".html":  "html",
+		".css":   "css",
+		".scss":  "scss",
+		".md":    "markdown",
+		".sql":   "sql",
 	}
 
 	if lang, ok := langMap[strings.ToLower(ext)]; ok {
