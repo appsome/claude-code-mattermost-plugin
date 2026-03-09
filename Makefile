@@ -14,9 +14,9 @@ build: check-go-version check-node-version
 build-all: check-go-version check-node-version
 	@echo "Building for all platforms..."
 	@mkdir -p server/dist
-	GOOS=linux GOARCH=amd64 go build -o server/dist/plugin-linux-amd64 ./server
-	GOOS=darwin GOARCH=amd64 go build -o server/dist/plugin-darwin-amd64 ./server
-	GOOS=windows GOARCH=amd64 go build -o server/dist/plugin-windows-amd64.exe ./server
+	cd server && GOOS=linux GOARCH=amd64 go build -o dist/plugin-linux-amd64 .
+	cd server && GOOS=darwin GOARCH=amd64 go build -o dist/plugin-darwin-amd64 .
+	cd server && GOOS=windows GOARCH=amd64 go build -o dist/plugin-windows-amd64.exe .
 	cd webapp && npm run build
 
 # Run tests
@@ -40,11 +40,19 @@ clean:
 	rm -rf webapp/dist
 	rm -rf dist
 
-# Create plugin bundle
-bundle: build
-	@echo "Creating plugin bundle..."
+# Create plugin bundle (for deployment, builds linux binary)
+bundle: check-go-version check-node-version
+	@echo "Building and creating plugin bundle..."
+	@mkdir -p server/dist
+	cd server && GOOS=linux GOARCH=amd64 go build -o dist/plugin-linux-amd64 .
+	cd webapp && npm run build
 	@mkdir -p dist
-	tar -czf dist/com.appsome.claudecode.tar.gz plugin.json server/dist webapp/dist
+	@rm -rf dist/bundle-tmp && mkdir -p dist/bundle-tmp/server/dist dist/bundle-tmp/webapp/dist
+	@cp plugin.json dist/bundle-tmp/
+	@cp server/dist/plugin-linux-amd64 dist/bundle-tmp/server/dist/
+	@cp -r webapp/dist/* dist/bundle-tmp/webapp/dist/
+	cd dist/bundle-tmp && tar -czf ../com.appsome.claudecode.tar.gz .
+	@rm -rf dist/bundle-tmp
 
 # Create all platform bundles
 bundle-all: build-all
