@@ -34,15 +34,26 @@ func (p *Plugin) OnActivate() error {
 	config := p.getConfiguration()
 
 	// Ensure the bot user exists
-	botID, err := p.Helpers.EnsureBot(&model.Bot{
+	bot := &model.Bot{
 		Username:    "claude-code",
 		DisplayName: "Claude Code",
 		Description: "AI-powered coding assistant",
-	})
-	if err != nil {
-		return fmt.Errorf("failed to ensure bot user: %w", err)
 	}
-	p.botUserID = botID
+	
+	// Try to create bot (will fail if it already exists, which is fine)
+	createdBot, appErr := p.API.CreateBot(bot)
+	if appErr != nil {
+		// Bot might already exist, try to get it by username
+		user, getUserErr := p.API.GetUserByUsername(bot.Username)
+		if getUserErr != nil {
+			return fmt.Errorf("failed to ensure bot user exists: %w", getUserErr)
+		}
+		p.botUserID = user.Id
+		p.API.LogInfo("Using existing bot user", "user_id", user.Id)
+	} else {
+		p.botUserID = createdBot.UserId
+		p.API.LogInfo("Created new bot user", "user_id", createdBot.UserId)
+	}
 
 	// Initialize bridge client
 	p.bridgeClient = NewBridgeClient(config.BridgeServerURL, p.API)
@@ -60,7 +71,7 @@ func (p *Plugin) OnActivate() error {
 	}
 
 	p.API.LogInfo("Claude Code plugin activated successfully",
-		"bot_user_id", botID,
+		"bot_user_id", p.botUserID,
 		"bridge_url", config.BridgeServerURL,
 	)
 

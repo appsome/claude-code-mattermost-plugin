@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	commandTriggerClaude      = "claude"
-	commandTriggerClaudeStart = "claude-start"
-	commandTriggerClaudeStop  = "claude-stop"
-	commandTriggerClaudeHelp  = "claude-help"
+	commandTriggerClaude       = "claude"
+	commandTriggerClaudeStart  = "claude-start"
+	commandTriggerClaudeStop   = "claude-stop"
+	commandTriggerClaudeStatus = "claude-status"
+	commandTriggerClaudeHelp   = "claude-help"
 )
 
 func (p *Plugin) registerCommands() error {
@@ -51,6 +52,17 @@ func (p *Plugin) registerCommands() error {
 		return err
 	}
 
+	// Register /claude-status command
+	if err := p.API.RegisterCommand(&model.Command{
+		Trigger:          commandTriggerClaudeStatus,
+		AutoComplete:     true,
+		AutoCompleteDesc: "Show current session status",
+		DisplayName:      "Claude Session Status",
+		Description:      "Display information about the current session",
+	}); err != nil {
+		return err
+	}
+
 	// Register /claude-help command
 	if err := p.API.RegisterCommand(&model.Command{
 		Trigger:          commandTriggerClaudeHelp,
@@ -67,69 +79,224 @@ func (p *Plugin) registerCommands() error {
 
 // ExecuteCommand handles slash command execution
 func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	trigger := strings.TrimPrefix(strings.Fields(args.Command)[0], "/")
+	split := strings.Fields(args.Command)
+	if len(split) == 0 {
+		return respondEphemeral("Invalid command"), nil
+	}
+
+	trigger := strings.TrimPrefix(split[0], "/")
+	commandArgs := strings.TrimSpace(strings.TrimPrefix(args.Command, split[0]))
 
 	switch trigger {
 	case commandTriggerClaude:
-		return p.executeClaude(args), nil
+		return p.executeClaude(args, commandArgs), nil
 	case commandTriggerClaudeStart:
-		return p.executeClaudeStart(args), nil
+		return p.executeClaudeStart(args, commandArgs), nil
 	case commandTriggerClaudeStop:
 		return p.executeClaudeStop(args), nil
+	case commandTriggerClaudeStatus:
+		return p.executeClaudeStatus(args), nil
 	case commandTriggerClaudeHelp:
 		return p.executeClaudeHelp(args), nil
 	default:
-		return &model.CommandResponse{
-			ResponseType: model.CommandResponseTypeEphemeral,
-			Text:         fmt.Sprintf("Unknown command: %s", trigger),
-		}, nil
+		return respondEphemeral(fmt.Sprintf("Unknown command: %s", trigger)), nil
 	}
 }
 
-func (p *Plugin) executeClaude(args *model.CommandArgs) *model.CommandResponse {
-	// TODO: Implement message sending
-	return &model.CommandResponse{
-		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         "⚠️ Command not yet implemented. This will be added in Issue #4.",
+// executeClaude handles the /claude <message> command
+func (p *Plugin) executeClaude(args *model.CommandArgs, message string) *model.CommandResponse {
+	if message == "" {
+		return respondEphemeral("Please provide a message. Usage: `/claude <your message>`")
 	}
+
+	// Get active session
+	session, err := p.GetActiveSession(args.ChannelId)
+	if err != nil {
+		p.API.LogError("Failed to get active session", "error", err.Error())
+		return respondEphemeral("❌ Error retrieving session. Please try again.")
+	}
+
+	if session == nil {
+		return respondEphemeral("No active session. Use `/claude-start [project-path]` to begin.")
+	}
+
+	// Send message to bridge server
+	if err := p.bridgeClient.SendMessage(session.SessionID, message); err != nil {
+		p.API.LogError("Failed to send message to bridge", "error", err.Error())
+		return respondEphemeral(fmt.Sprintf("❌ Failed to send message: %s", err.Error()))
+	}
+
+	// Update last message timestamp
+	if err := p.UpdateSessionLastMessage(args.ChannelId); err != nil {
+		p.API.LogWarn("Failed to update last message timestamp", "error", err.Error())
+	}
+
+	// Post user's message as a regular post (not ephemeral)
+	userPost := &model.Post{
+		ChannelId: args.ChannelId,
+		UserId:    args.UserId,
+		Message:   fmt.Sprintf("**Claude:** %s", message),
+	}
+	if _, appErr := p.API.CreatePost(userPost); appErr != nil {
+		p.API.LogWarn("Failed to create user message post", "error", appErr.Error())
+	}
+
+	// Response will come via WebSocket, so return empty response
+	return &model.CommandResponse{}
 }
 
-func (p *Plugin) executeClaudeStart(args *model.CommandArgs) *model.CommandResponse {
-	// TODO: Implement session start
-	return &model.CommandResponse{
-		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         "⚠️ Command not yet implemented. This will be added in Issue #4.",
+// executeClaudeStart handles the /claude-start [project-path] command
+func (p *Plugin) executeClaudeStart(args *model.CommandArgs, projectPath string) *model.CommandResponse {
+	if projectPath == "" {
+		// TODO: In Issue #5, show interactive dialog for project selection
+		return respondEphemeral("Please provide a project path. Usage: `/claude-start /path/to/project`")
 	}
+
+	// Check if session already exists
+	existing, err := p.GetActiveSession(args.ChannelId)
+	if err != nil {
+		p.API.LogError("Failed to check for existing session", "error", err.Error())
+		return respondEphemeral("❌ Error checking for existing session. Please try again.")
+	}
+
+	if existing != nil {
+		return respondEphemeral(fmt.Sprintf("⚠️ This channel already has an active session for project: `%s`\nUse `/claude-stop` to end it first.", existing.ProjectPath))
+	}
+
+	// Create new session
+	session, err := p.CreateSession(args.ChannelId, projectPath, args.UserId)
+	if err != nil {
+		p.API.LogError("Failed to create session", "error", err.Error())
+		return respondEphemeral(fmt.Sprintf("❌ Failed to start session: %s", err.Error()))
+	}
+
+	// Post success message from bot
+	successMsg := fmt.Sprintf("🚀 Started Claude Code session\n\n**Project:** `%s`\n**Session ID:** `%s`\n\nYou can now send messages with `/claude <your message>`", projectPath, session.SessionID)
+	p.postBotMessage(args.ChannelId, successMsg)
+
+	return &model.CommandResponse{}
 }
 
+// executeClaudeStop handles the /claude-stop command
 func (p *Plugin) executeClaudeStop(args *model.CommandArgs) *model.CommandResponse {
-	// TODO: Implement session stop
+	// Check if session exists
+	session, err := p.GetActiveSession(args.ChannelId)
+	if err != nil {
+		p.API.LogError("Failed to get active session", "error", err.Error())
+		return respondEphemeral("❌ Error retrieving session. Please try again.")
+	}
+
+	if session == nil {
+		return respondEphemeral("No active session to stop. Use `/claude-start` to begin a new one.")
+	}
+
+	// Stop the session
+	if err := p.StopSession(args.ChannelId); err != nil {
+		p.API.LogError("Failed to stop session", "error", err.Error())
+		return respondEphemeral(fmt.Sprintf("❌ Failed to stop session: %s", err.Error()))
+	}
+
+	// Post success message from bot
+	p.postBotMessage(args.ChannelId, "✅ Session stopped successfully. Use `/claude-start` to begin a new one.")
+
+	return &model.CommandResponse{}
+}
+
+// executeClaudeStatus handles the /claude-status command
+func (p *Plugin) executeClaudeStatus(args *model.CommandArgs) *model.CommandResponse {
+	// Get active session
+	session, err := p.GetActiveSession(args.ChannelId)
+	if err != nil {
+		p.API.LogError("Failed to get active session", "error", err.Error())
+		return respondEphemeral("❌ Error retrieving session. Please try again.")
+	}
+
+	if session == nil {
+		return respondEphemeral("No active session. Use `/claude-start [project-path]` to begin.")
+	}
+
+	// Get session details from bridge
+	bridgeSession, err := p.bridgeClient.GetSession(session.SessionID)
+	if err != nil {
+		p.API.LogError("Failed to get session from bridge", "error", err.Error())
+		return respondEphemeral(fmt.Sprintf("❌ Failed to get session details: %s", err.Error()))
+	}
+
+	// Calculate uptime
+	uptime := formatDuration(session.CreatedAt)
+	lastMessage := formatDuration(session.LastMessageAt)
+
+	// Get message count
+	messages, err := p.bridgeClient.GetMessages(session.SessionID, 0)
+	messageCount := 0
+	if err == nil {
+		messageCount = len(messages)
+	}
+
+	// Format status
+	statusMsg := fmt.Sprintf(`### 📊 Session Status
+
+**Project:** %s
+**Session ID:** %s
+**Status:** %s
+**Uptime:** %s
+**Last Message:** %s
+**Message Count:** %d
+**CLI Process:** %s`,
+		session.ProjectPath,
+		session.SessionID,
+		bridgeSession.Status,
+		uptime,
+		lastMessage,
+		messageCount,
+		formatPID(bridgeSession.CLIPid),
+	)
+
+	return respondEphemeral(statusMsg)
+}
+
+// executeClaudeHelp handles the /claude-help command
+func (p *Plugin) executeClaudeHelp(args *model.CommandArgs) *model.CommandResponse {
+	helpText := "### Claude Code - AI Coding Assistant\n\n" +
+		"**Available Commands:**\n" +
+		"- `/claude <message>` - Send a message to Claude Code\n" +
+		"- `/claude-start [project-path]` - Start a new coding session\n" +
+		"- `/claude-stop` - Stop the current session\n" +
+		"- `/claude-status` - Show current session status\n" +
+		"- `/claude-help` - Show this help message\n\n" +
+		"**Getting Started:**\n" +
+		"1. Start a session with `/claude-start /path/to/your/project`\n" +
+		"2. Send messages with `/claude <your question or request>`\n" +
+		"3. Claude Code will respond with suggestions and actions\n" +
+		"4. Stop the session with `/claude-stop` when done\n\n" +
+		"**Examples:**\n" +
+		"- `/claude add a login form with email and password`\n" +
+		"- `/claude refactor the user service to use async/await`\n" +
+		"- `/claude write unit tests for the auth module`\n\n" +
+		"**Configuration:**\n" +
+		"Go to **System Console → Plugins → Claude Code** to configure the bridge server URL and settings.\n\n" +
+		"For more information, visit: https://github.com/appsome/claude-code-mattermost-plugin"
+
+	return respondEphemeral(helpText)
+}
+
+// Helper functions
+
+func respondEphemeral(message string) *model.CommandResponse {
 	return &model.CommandResponse{
 		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         "⚠️ Command not yet implemented. This will be added in Issue #4.",
+		Text:         message,
 	}
 }
 
-func (p *Plugin) executeClaudeHelp(args *model.CommandArgs) *model.CommandResponse {
-	helpText := `### Claude Code - AI Coding Assistant
+func formatDuration(unixTimestamp int64) string {
+	// Simple duration formatting (could be enhanced)
+	return fmt.Sprintf("<t:%d:R>", unixTimestamp) // Discord-style relative timestamp
+}
 
-**Available Commands:**
-- \`/claude <message>\` - Send a message to Claude Code
-- \`/claude-start [project-path]\` - Start a new coding session
-- \`/claude-stop\` - Stop the current session
-- \`/claude-help\` - Show this help message
-
-**Getting Started:**
-1. Start a session with \`/claude-start /path/to/your/project\`
-2. Send messages with \`/claude <your question or request>\`
-3. Approve/reject suggested changes using interactive buttons
-4. Stop the session with \`/claude-stop\`
-
-For more information, visit: https://github.com/appsome/claude-code-mattermost-plugin
-`
-
-	return &model.CommandResponse{
-		ResponseType: model.CommandResponseTypeEphemeral,
-		Text:         helpText,
+func formatPID(pid *int) string {
+	if pid == nil {
+		return "Not running"
 	}
+	return fmt.Sprintf("PID %d", *pid)
 }
