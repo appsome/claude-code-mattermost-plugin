@@ -195,6 +195,37 @@ func TestExecuteCommand_InvalidCommand(t *testing.T) {
 	assert.Contains(t, response.Text, "Unknown command")
 }
 
+func TestFormatDuration(t *testing.T) {
+	// Test with a specific timestamp
+	timestamp := int64(1678901234)
+	result := formatDuration(timestamp)
+	assert.Equal(t, "<t:1678901234:R>", result)
+	
+	// Test with zero timestamp
+	result = formatDuration(0)
+	assert.Equal(t, "<t:0:R>", result)
+	
+	// Test with negative timestamp
+	result = formatDuration(-1000)
+	assert.Equal(t, "<t:-1000:R>", result)
+}
+
+func TestFormatPID(t *testing.T) {
+	// Test with a valid PID
+	pid := 12345
+	result := formatPID(&pid)
+	assert.Equal(t, "PID 12345", result)
+	
+	// Test with nil PID
+	result = formatPID(nil)
+	assert.Equal(t, "Not running", result)
+	
+	// Test with zero PID
+	zeroPID := 0
+	result = formatPID(&zeroPID)
+	assert.Equal(t, "PID 0", result)
+}
+
 // setupTestPlugin creates a plugin instance with mocked API for testing
 func setupTestPlugin(t *testing.T) *Plugin {
 	api := &plugintest.API{}
