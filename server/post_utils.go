@@ -36,9 +36,9 @@ func (p *Plugin) postChangeProposal(channelID, content string, changeID string) 
 				},
 			},
 			{
-				Id:    "modify_" + changeID,
-				Name:  "✏️ Modify",
-				Type:  "button",
+				Id:   "modify_" + changeID,
+				Name: "✏️ Modify",
+				Type: "button",
 				Integration: &model.PostActionIntegration{
 					URL: p.getPluginURL() + "/api/action/modify",
 					Context: map[string]interface{}{
@@ -66,9 +66,9 @@ func (p *Plugin) postChangeProposal(channelID, content string, changeID string) 
 func (p *Plugin) postWithQuickActions(channelID, content, sessionID string) (string, error) {
 	actions := []*model.PostAction{
 		{
-			Id:    "continue_" + sessionID,
-			Name:  "▶️ Continue",
-			Type:  "button",
+			Id:   "continue_" + sessionID,
+			Name: "▶️ Continue",
+			Type: "button",
 			Integration: &model.PostActionIntegration{
 				URL: p.getPluginURL() + "/api/action/continue",
 				Context: map[string]interface{}{
@@ -77,9 +77,9 @@ func (p *Plugin) postWithQuickActions(channelID, content, sessionID string) (str
 			},
 		},
 		{
-			Id:    "explain_" + sessionID,
-			Name:  "💡 Explain",
-			Type:  "button",
+			Id:   "explain_" + sessionID,
+			Name: "💡 Explain",
+			Type: "button",
 			Integration: &model.PostActionIntegration{
 				URL: p.getPluginURL() + "/api/action/explain",
 				Context: map[string]interface{}{
@@ -152,9 +152,9 @@ func (p *Plugin) postCodeChange(channelID, filename, diff string, changeID strin
 			},
 		},
 		{
-			Id:    "view_" + changeID,
-			Name:  "👁️ View Full File",
-			Type:  "button",
+			Id:   "view_" + changeID,
+			Name: "👁️ View Full File",
+			Type: "button",
 			Integration: &model.PostActionIntegration{
 				URL: p.getPluginURL() + "/api/action/view",
 				Context: map[string]interface{}{
@@ -193,9 +193,9 @@ func (p *Plugin) postWithMenu(channelID, content string, options []ActionOption,
 	}
 
 	action := &model.PostAction{
-		Id:    "action_menu_" + sessionID,
-		Name:  "Actions",
-		Type:  "select",
+		Id:   "action_menu_" + sessionID,
+		Name: "Actions",
+		Type: "select",
 		Integration: &model.PostActionIntegration{
 			URL: p.getPluginURL() + "/api/action/menu",
 			Context: map[string]interface{}{
