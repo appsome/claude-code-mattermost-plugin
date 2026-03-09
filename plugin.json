@@ -1,0 +1,51 @@
+{
+  "id": "com.appsome.claudecode",
+  "name": "Claude Code",
+  "description": "Integrate Claude Code AI assistant directly in Mattermost",
+  "homepage_url": "https://github.com/appsome/claude-code-mattermost-plugin",
+  "support_url": "https://github.com/appsome/claude-code-mattermost-plugin/issues",
+  "release_notes_url": "https://github.com/appsome/claude-code-mattermost-plugin/releases",
+  "icon_path": "assets/icon.png",
+  "version": "0.1.0",
+  "min_server_version": "9.0.0",
+  "server": {
+    "executables": {
+      "linux-amd64": "server/dist/plugin-linux-amd64",
+      "darwin-amd64": "server/dist/plugin-darwin-amd64",
+      "windows-amd64": "server/dist/plugin-windows-amd64.exe"
+    },
+    "executable": ""
+  },
+  "webapp": {
+    "bundle_path": "webapp/dist/main.js"
+  },
+  "settings_schema": {
+    "header": "Configure Claude Code plugin to connect to your bridge server and Claude Code CLI.",
+    "footer": "For more information, visit [the documentation](https://github.com/appsome/claude-code-mattermost-plugin).",
+    "settings": [
+      {
+        "key": "BridgeServerURL",
+        "display_name": "Bridge Server URL",
+        "type": "text",
+        "help_text": "URL of the Claude Code bridge server (e.g., http://localhost:3002)",
+        "placeholder": "http://localhost:3002",
+        "default": "http://localhost:3002"
+      },
+      {
+        "key": "ClaudeCodePath",
+        "display_name": "Claude Code CLI Path",
+        "type": "text",
+        "help_text": "Path to the Claude Code CLI executable",
+        "placeholder": "/usr/local/bin/claude-code",
+        "default": "/usr/local/bin/claude-code"
+      },
+      {
+        "key": "EnableFileOperations",
+        "display_name": "Enable File Operations",
+        "type": "bool",
+        "help_text": "Allow users to browse and edit files via Mattermost dialogs",
+        "default": true
+      }
+    ]
+  }
+}

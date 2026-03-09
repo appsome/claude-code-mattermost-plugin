@@ -1,0 +1,45 @@
+# Build artifacts
+/server/dist/
+/webapp/dist/
+/dist/
+
+# Dependencies
+/node_modules/
+/webapp/node_modules/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# Coverage
+coverage/
+coverage.txt
+*.coverprofile
+
+# Temporary files
+tmp/
+temp/
